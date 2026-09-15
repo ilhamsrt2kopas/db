@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SuperApp SRT 2 Kota Pasuruan</title>
+    <!-- PWA Manifest Meta -->
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="description" content="Aplikasi Terpadu Sekolah Berasrama SRT 2 Kota Pasuruan - Cerdas Bersama, Tumbuh Setara">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlN1cGVyQXBwIFNSVCAyIEtvdGEgUGFzdXJ1YW4iLAogICJzaG9ydF9uYW1lIjogIlNSVDIgU3VwZXJBcHAiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmOGZhZmMiLAogICJ0aGVtZV9jb2xvciIjogIiMxZTNhOGEiLAogICJpY29ucyI6IFtdCn0=">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code Generator & Reader Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        accent: {
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Solid Modern Clean Styling (No GPU-heavy glassmorphism) */
+        .solid-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .solid-badge {
+            font-weight: 600;
+            padding: 0.25rem 0.625rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+        }
+
+        /* Hardware Accelerated Transitions */
+        .page-transition {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, opacity;
+        }
+
+        /* Custom Scrollbar for fast touch */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        /* Printable A4 Form Engine CSS */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-section, #print-section * {
+                visibility: visible;
+            }
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                color: black;
+                padding: 0;
+                margin: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased">
+
+    <div id="app-container" class="flex-grow flex flex-col w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2">
+        <!-- TOP HEADER NAVBAR (Visible when logged in) -->
+        <header id="main-header" class="hidden solid-card mb-4 px-4 py-3 flex justify-between items-center bg-brand-900 text-white rounded-xl">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-brand-900 shadow">
+                    <i class="fa-solid fa-graduation-cap text-brand-700 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base sm:text-lg leading-tight">SRT 2 Kota Pasuruan</h1>
+                    <p class="text-xs text-blue-200 hidden sm:block">Cerdas Bersama, Tumbuh Setara</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <div id="user-badge" class="text-right hidden sm:block">
+                    <p id="header-user-name" class="font-semibold text-sm leading-tight text-white"></p>
+                    <p id="header-user-role" class="text-xs text-blue-200 capitalize"></p>
+                </div>
+                <button onclick="showGasModal()" title="Instruksi & Kode Backend GAS" class="bg-brand-700 hover:bg-brand-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 border border-brand-500">
+                    <i class="fa-solid fa-code"></i>
+                    <span class="hidden md:inline">Kode GAS</span>
+                </button>
+                <button onclick="logout()" title="Keluar" class="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg text-xs font-semibold shadow transition-colors">
+                    <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN DYNAMIC CONTENT CONTAINER -->
+        <main id="main-content" class="flex-grow flex flex-col">
+            <!-- Dynamic views will be injected here via JavaScript -->
+        </main>
+    </div>
+
+    <!-- GLOBAL UI MODAL DIALOG (Replaces alert() and confirm()) -->
+    <div id="global-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="solid-card bg-white max-w-md w-full p-5 rounded-2xl shadow-xl transform transition-transform">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-2 text-brand-900 font-bold text-lg" id="modal-title-container">
+                    <i id="modal-icon" class="fa-solid fa-circle-info text-brand-600"></i>
+                    <h3 id="modal-title">Pemberitahuan</h3>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="modal-body" class="text-sm text-slate-600 mb-5 leading-relaxed"></div>
+            <div id="modal-footer" class="flex justify-end space-x-2">
+                <button onclick="closeModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR SCANNER MODAL -->
+    <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 z-50 hidden flex items-center justify-center p-3">
+        <div class="solid-card bg-white max-w-lg w-full p-4 rounded-2xl shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-qrcode text-brand-600"></i> Pemindai QR Kode
+                </h3>
+                <button onclick="closeQRScanner()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <!-- Camera Selection Dropdown -->
+            <div class="mb-3">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Kamera:</label>
+                <select id="camera-select" onchange="changeCamera()" class="w-full text-xs p-2 border border-slate-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="">Memuat kamera...</option>
+                </select>
+            </div>
+            <!-- Scanner Area -->
+            <div id="qr-reader" class="w-full bg-black rounded-xl overflow-hidden aspect-square flex items-center justify-center"></div>
+            <p class="text-xs text-center text-slate-500 mt-3">Arahkan kamera ke kode QR (NIP/NISN/NIW).</p>
+            <button onclick="closeQRScanner()" class="mt-4 w-full bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 rounded-xl text-sm font-semibold">Batal</button>
+        </div>
+    </div>
+
+    <!-- GAS BACKEND EXPORTER MODAL -->
+    <div id="gas-modal" class="fixed inset-0 bg-slate-900/70 z-50 hidden flex items-center justify-center p-3">
+        <div class="solid-card bg-white max-w-3xl w-full p-5 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3 mb-3">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-brand-600"></i> Setup Backend Google Apps Script (GAS)
+                </h3>
+                <button onclick="closeGasModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="overflow-y-auto text-xs space-y-3 pr-1 text-slate-700 flex-grow">
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900">
+                    <strong>Petunjuk Singkat Penggunaan:</strong>
+                    <ol class="list-decimal list-inside mt-1 space-y-1">
+                        <li>Buat Spreadsheet Baru di Google Drive, beri nama <strong>"DB SuperApp SRT2 Pasuruan"</strong>.</li>
+                        <li>Buka menu <strong>Ekstensi &gt; Apps Script</strong>.</li>
+                        <li>Salin semua kode di bawah ini lalu tempelkan ke file <code>Code.gs</code>.</li>
+                        <li>Klik <strong>Terapkan (Deploy) &gt; Penyerahan Baru (New Deployment)</strong>. Pilih tipe <em>Web App</em>, setel akses ke <em>"Anyone" (Siapa saja)</em>.</li>
+                        <li>Salin URL Web App yang dihasilkan, lalu masukkan pada pengaturan API di aplikasi ini.</li>
+                    </ol>
+                </div>
+                <div class="flex justify-between items-center font-semibold text-slate-800">
+                    <span>Kode Server Code.gs:</span>
+                    <button onclick="copyGasCode()" class="bg-brand-600 text-white px-3 py-1 rounded hover:bg-brand-700 text-xs flex items-center gap-1">
+                        <i class="fa-regular fa-copy"></i> Salin Kode
+                    </button>
+                </div>
+                <pre id="gas-code-text" class="bg-slate-900 text-green-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono select-all leading-tight max-h-72 border border-slate-800"></pre>
+            </div>
+            <div class="mt-4 border-t pt-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-semibold text-slate-600">Mode API:</span>
+                    <select id="api-mode-select" onchange="toggleApiMode(this.value)" class="text-xs p-1.5 border rounded-lg bg-slate-50 font-medium">
+                        <option value="mock">Mode Simulasi / Demo (Lokal)</option>
+                        <option value="gas">Mode Google Spreadsheet API (Live)</option>
+                    </select>
+                </div>
+                <button onclick="closeGasModal()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-semibold">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HIDDEN PRINT CONTAINER FOR A4 DOCUMENTS -->
+    <div id="print-section" class="hidden"></div>
+
+    <!-- JAVASCRIPT APPLICATION CORE -->
+    <script>
+        
+        // GLOBAL STATE
+        const APP_STATE = {
+            currentUser: null, // { id, name, role, subRole, nisn, nip, niw, photo }
+            currentView: 'landing',
+            apiMode: 'mock', // 'mock' or 'gas'
+            gasApiUrl: '',
+            attendanceSession: 1, // 1, 2, 3
+            cameras: [],
+            selectedCameraId: null,
+            qrScannerInstance: null,
+            activeScanCallback: null,
+            // In-Memory Database (Synced with GAS when live mode enabled)
+            db: {
+                siswa: [
+                    { id: '1001', nisn: '0051234567', jenjang: 'SMA', kelas: 'X-A', nama: 'Ahmad Raihan', ttl: 'Pasuruan, 12-05-2008', alamat: 'Jl. Pahlawan No. 12 Pasuruan', noHpOrtu: '081234567890', photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', parentNiw: 'NIW-9001' },
+                    { id: '1002', nisn: '0051234568', jenjang: 'SMA', kelas: 'X-A', nama: 'Aisha Raihana', ttl: 'Pasuruan, 15-08-2009', alamat: 'Jl. Pahlawan No. 12 Pasuruan', noHpOrtu: '081234567890', photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', parentNiw: 'NIW-9001' },
+                    { id: '1003', nisn: '0051234569', jenjang: 'SMA', kelas: 'XI-B', nama: 'Budi Santoso', ttl: 'Pasuruan, 01-01-2008', alamat: 'Jl. Kebonagung No. 44 Pasuruan', noHpOrtu: '085678901234', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', parentNiw: 'NIW-9002' },
+                    { id: '1004', nisn: '0051234570', jenjang: 'SMP', kelas: 'VIII-1', nama: 'Citra Dewi', ttl: 'Pasuruan, 10-10-2010', alamat: 'Jl. Bugul Kidul No. 5 Pasuruan', noHpOrtu: '087890123456', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', parentNiw: 'NIW-9003' }
+                ],
+                petugas: [
+                    { id: '2001', nip: '198501012010011001', nama: 'Drs. H. M. Fauzi, M.Pd.', jabatan: 'Kepala Sekolah', noHp: '08111111111', photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', pass: 'admin123', subRole: 'Kepala Sekolah' },
+                    { id: '2002', nip: '199002022015021002', nama: 'Siti Aminah, S.Pd.', jabatan: 'Humas / Pegawai Berwenang', noHp: '08222222222', photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150', pass: 'admin123', subRole: 'Humas' },
+                    { id: '2003', nip: '198803032012032003', nama: 'dr. Hendra Wijaya', jabatan: 'Kepala UKSR / Pegawai Berwenang', noHp: '08333333333', photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', pass: 'admin123', subRole: 'Kepala UKSR' },
+                    { id: '2004', nip: '199204042018041004', nama: 'Rahmat Hidayat, S.T.', jabatan: 'Sarpras / Pegawai Berwenang', noHp: '08444444444', photo: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150', pass: 'admin123', subRole: 'Sarpras' }
+                ],
+                orangtua: [
+                    { niw: 'NIW-9001', nama: 'Bpk. Supriyadi (Orang Tua Ahmad & Aisha)', noHp: '081234567890' },
+                    { niw: 'NIW-9002', nama: 'Ibu Rahmawati (Orang Tua Budi)', noHp: '085678901234' }
+                ],
+                barang: [
+                    { id: 'B01', kategori: 'Peralatan Olahraga', jenis: 'Dipinjam', nama: 'Bola Sepak Mikasa', jumlah: 10, photo: 'https://images.unsplash.com/photo-1614632537197-38a17061c2bd?w=150' },
+                    { id: 'B02', kategori: 'Elektronik & Multimedia', jenis: 'Dipinjam', nama: 'Proyektor Epson EB-E500', jumlah: 3, photo: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=150' },
+                    { id: 'B03', kategori: 'Perlengkapan Asrama', jenis: 'Diambil', nama: 'Sabun Mandi Pack', jumlah: 50, photo: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=150' },
+                    { id: 'B04', kategori: 'Seragam & Atribut', jenis: 'Distribusi', nama: 'Seragam Batik Sekolah Size L', jumlah: 100, photo: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=150' }
+                ],
+                absensi: [], // { date, session, nisn, status, note }
+                pengumuman: [
+                    { id: 'P01', judul: 'Jadwal Kepulangan Santri Libur Semester', isi: 'Disampaikan kepada seluruh wali murid bahwa kepulangan santri akan dimulai hari Jumat mendatang.', penanggungJawab: 'Humas', status: 'Disetujui', tanggal: '2026-09-10' }
+                ],
+                perizinan: [], // { id, nisns:[], detail:{startDate, returnDate, reason}, status, approvedBy, letterNo }
+                konseling: [], // { id, nisns:[], problem, impact, solution, status, counselorNip, letterNo }
+                peminjamanBarang: [], // { id, borrowerId, borrowerName, items:[{id, nama, qty}], returnPlan, purpose, status, returnDetails:[], letterNo }
+                pengambilanBarang: [], // { id, takenBy, items:[{id, nama, qty}], date }
+                distribusiBarang: [], // { id, nisns:[], items:[{id, nama, qty}], date }
+                pesan: [
+                    { id: 'MSG1', nisn: '0051234567', parentNiw: 'NIW-9001', sender: 'Siswa (Scan Surat Admin)', image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400', replyText: 'Sehat selalu ya nak, belajar yang rajin.', date: '2026-09-12' }
+                ]
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
+
+        function initApp() {
+            // Restore API config if available
+            const savedGasUrl = localStorage.getItem('srt2_gas_url');
+            if (savedGasUrl) {
+                APP_STATE.gasApiUrl = savedGasUrl;
+                APP_STATE.apiMode = 'gas';
+            }
+            
+            // Check logged in state
+            const savedUser = localStorage.getItem('srt2_user');
+            if (savedUser) {
+                try {
+                    APP_STATE.currentUser = JSON.parse(savedUser);
+                    renderDashboard();
+                    return;
+                } catch(e) {
+                    localStorage.removeItem('srt2_user');
+                }
+            }
+
+            // Render default Landing page
+            renderLanding();
+            generateGasScriptText();
+        }
+
+        function setView(viewName) {
+            APP_STATE.currentView = viewName;
+            const main = document.getElementById('main-content');
+            main.className = 'flex-grow flex flex-col page-transition opacity-0 transform translate-y-2';
+            
+            setTimeout(() => {
+                switch(viewName) {
+                    case 'landing': renderLanding(); break;
+                    case 'login': renderLogin(); break;
+                    case 'dashboard': renderDashboardView(); break;
+                    case 'absensi': renderAbsensiView(); break;
+                    case 'pengumuman': renderPengumumanView(); break;
+                    case 'perizinan': renderPerizinanView(); break;
+                    case 'konseling': renderKonselingView(); break;
+                    case 'peminjaman': renderPeminjamanView(); break;
+                    case 'pengambilan': renderPengambilanView(); break;
+                    case 'distribusi': renderDistribusiView(); break;
+                    case 'datasiswa': renderDataSiswaView(); break;
+                    case 'datapetugas': renderDataPetugasView(); break;
+                    case 'databarang': renderDataBarangView(); break;
+                    case 'profil': renderProfilView(); break;
+                    case 'rekapsaya': renderRekapSayaView(); break;
+                    case 'persetujuan': renderPersetujuanView(); break;
+                    case 'pesan': renderPesanView(); break;
+                    default: renderLanding(); break;
+                }
+                main.classList.remove('opacity-0', 'translate-y-2');
+            }, 100);
+        }
+
+        function renderLanding() {
+            document.getElementById('main-header').classList.add('hidden');
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="flex-grow flex flex-col items-center justify-center text-center p-4">
+                    <div class="solid-card bg-white p-8 rounded-3xl max-w-md w-full shadow-lg border border-slate-200">
+                        <!-- School Logo -->
+                        <div class="w-24 h-24 mx-auto mb-5 rounded-full bg-brand-900 flex items-center justify-center text-white text-4xl shadow-md">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-1">Selamat Datang</h2>
+                        <p class="text-brand-800 font-semibold text-sm mb-2">Portal Terpadu SRT 2 Kota Pasuruan</p>
+                        <p class="text-slate-500 text-xs italic mb-6">"Cerdas Bersama, Tumbuh Setara"</p>
+                        
+                        <div class="space-y-3">
+                            <button onclick="setView('login')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-xl text-sm shadow transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-right-to-bracket"></i> Masuk Ke Portal
+                            </button>
+                            <button onclick="showGasModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all border border-slate-300">
+                                <i class="fa-solid fa-gears text-brand-600 mr-1"></i> Pengaturan Backend Spreadsheet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLogin() {
+            document.getElementById('main-header').classList.add('hidden');
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="flex-grow flex flex-col items-center justify-center p-4">
+                    <div class="solid-card bg-white p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-xl border border-slate-200">
+                        <div class="text-center mb-6">
+                            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-brand-900 flex items-center justify-center text-white text-2xl shadow">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-lg">Masuk Pengguna</h3>
+                            <p class="text-xs text-slate-500">Pilih metode login dengan QR atau NIP & Password</p>
+                        </div>
+
+                        <!-- Scan QR Button (For All Roles) -->
+                        <div class="mb-5">
+                            <button onclick="openQRScanner(handleLoginQR)" class="w-full bg-brand-50 hover:bg-brand-100 border-2 border-dashed border-brand-500 text-brand-900 font-bold py-3 px-4 rounded-2xl text-xs flex flex-col items-center justify-center gap-1 transition-all">
+                                <i class="fa-solid fa-qrcode text-2xl text-brand-600"></i>
+                                <span>Pindai Kode QR Akses</span>
+                                <span class="text-[10px] text-brand-700 font-normal">(NIP Guru/Admin, NISN Siswa, atau NIW Orang Tua)</span>
+                            </button>
+                        </div>
+
+                        <div class="relative flex py-2 items-center mb-5">
+                            <div class="flex-grow border-t border-slate-200"></div>
+                            <span class="flex-shrink mx-3 text-slate-400 text-[11px] font-semibold uppercase">Atau Login Admin</span>
+                            <div class="flex-grow border-t border-slate-200"></div>
+                        </div>
+
+                        <!-- Admin NIP & Password Form -->
+                        <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">NIP / NIK Admin</label>
+                                <input type="text" id="login-nip" required placeholder="Masukkan NIP" class="w-full text-xs p-3 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
+                                <input type="password" id="login-pass" required placeholder="••••••••" class="w-full text-xs p-3 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+                            <button type="submit" class="w-full bg-brand-900 hover:bg-brand-800 text-white font-bold py-3 rounded-xl text-xs shadow transition-colors">
+                                Masuk NIP Admin
+                            </button>
+                        </form>
+
+                        <button onclick="setView('landing')" class="mt-4 w-full text-center text-xs text-slate-500 hover:text-slate-800">
+                            &larr; Kembali ke Beranda
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const nip = document.getElementById('login-nip').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+
+            const petugas = APP_STATE.db.petugas.find(p => p.nip === nip && p.pass === pass);
+            if (petugas) {
+                APP_STATE.currentUser = {
+                    id: petugas.id,
+                    name: petugas.nama,
+                    nip: petugas.nip,
+                    role: 'admin',
+                    subRole: petugas.subRole,
+                    jabatan: petugas.jabatan,
+                    photo: petugas.photo
+                };
+                localStorage.setItem('srt2_user', JSON.stringify(APP_STATE.currentUser));
+                renderDashboard();
+                showModal("Berhasil Masuk", `Selamat datang kembali, ${petugas.nama}`);
+            } else {
+                showModal("Login Gagal", "NIP atau kata sandi tidak ditemukan.", "error");
+            }
+        }
+
+        function handleLoginQR(qrCodeText) {
+            // QR format rules:
+            // "NIP - Nama" (Admin)
+            // "NISN - Nama Siswa" (Siswa)
+            // "NIW - Nama Orang Tua" (Orang Tua)
+            const parts = qrCodeText.split('-').map(s => s.trim());
+            const idCode = parts[0];
+
+            // 1. Check Petugas
+            const petugas = APP_STATE.db.petugas.find(p => p.nip === idCode);
+            if (petugas) {
+                APP_STATE.currentUser = {
+                    id: petugas.id,
+                    name: petugas.nama,
+                    nip: petugas.nip,
+                    role: 'admin',
+                    subRole: petugas.subRole,
+                    jabatan: petugas.jabatan,
+                    photo: petugas.photo
+                };
+                saveAndOpenDashboard(petugas.nama);
+                return;
+            }
+
+            // 2. Check Siswa
+            const siswa = APP_STATE.db.siswa.find(s => s.nisn === idCode);
+            if (siswa) {
+                APP_STATE.currentUser = {
+                    id: siswa.id,
+                    name: siswa.nama,
+                    nisn: siswa.nisn,
+                    role: 'siswa',
+                    subRole: 'Siswa',
+                    photo: siswa.photo
+                };
+                saveAndOpenDashboard(siswa.nama);
+                return;
+            }
+
+            // 3. Check Orang Tua
+            const ortu = APP_STATE.db.orangtua.find(o => o.niw === idCode);
+            if (ortu) {
+                APP_STATE.currentUser = {
+                    id: ortu.niw,
+                    name: ortu.nama,
+                    niw: ortu.niw,
+                    role: 'orangtua',
+                    subRole: 'Orang Tua'
+                };
+                saveAndOpenDashboard(ortu.nama);
+                return;
+            }
+
+            showModal("QR Tidak Dikenal", `Kode QR (${qrCodeText}) tidak terdaftar dalam sistem.`, "error");
+        }
+
+        function saveAndOpenDashboard(name) {
+            localStorage.setItem('srt2_user', JSON.stringify(APP_STATE.currentUser));
+            renderDashboard();
+            showModal("Berhasil Masuk QR", `Selamat datang, ${name}`);
+        }
+
+        function logout() {
+            APP_STATE.currentUser = null;
+            localStorage.removeItem('srt2_user');
+            setView('landing');
+        }
+
+        function renderDashboard() {
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('header-user-name').innerText = APP_STATE.currentUser.name;
+            document.getElementById('header-user-role').innerText = APP_STATE.currentUser.role === 'admin' ? `${APP_STATE.currentUser.subRole}` : APP_STATE.currentUser.subRole;
+            setView('dashboard');
+        }
+
+        function renderDashboardView() {
+            const user = APP_STATE.currentUser;
+            const main = document.getElementById('main-content');
+
+            if (user.role === 'orangtua') {
+                renderParentDashboard(main);
+                return;
+            }
+
+            // Admin / Staff View Layout
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <!-- Navigation Grid Buttons -->
+                    <div class="solid-card p-4 bg-white">
+                        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Menu Utama SuperApp</h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                            ${renderMenuBtn('dasbor', 'fa-chart-pie', 'Dasbor', 'bg-blue-600', true)}
+                            ${renderMenuBtn('absensi', 'fa-clipboard-user', 'Absensi Siswa', 'bg-indigo-600')}
+                            ${renderMenuBtn('pengumuman', 'fa-bullhorn', 'Buat Pengumuman', 'bg-amber-600')}
+                            ${renderMenuBtn('perizinan', 'fa-file-signature', 'Izin Siswa', 'bg-emerald-600')}
+                            ${renderMenuBtn('konseling', 'fa-comments-dollar', 'Konseling', 'bg-purple-600')}
+                            ${renderMenuBtn('peminjaman', 'fa-boxes-packing', 'Pinjam Barang', 'bg-sky-600')}
+                            ${renderMenuBtn('pengambilan', 'fa-box-open', 'Ambil Barang', 'bg-teal-600')}
+                            ${renderMenuBtn('distribusi', 'fa-truck-ramp-box', 'Distribusi', 'bg-orange-600')}
+                            ${renderMenuBtn('datasiswa', 'fa-id-card-clip', 'Data Siswa', 'bg-slate-700')}
+                            ${renderMenuBtn('datapetugas', 'fa-user-gear', 'Data Petugas', 'bg-slate-800')}
+                            ${renderMenuBtn('databarang', 'fa-warehouse', 'Data Barang', 'bg-slate-900')}
+                            ${renderMenuBtn('profil', 'fa-user-tie', 'Profil Saya', 'bg-cyan-700')}
+                            ${renderMenuBtn('rekapsaya', 'fa-clock-rotate-left', 'Rekap Saya', 'bg-rose-700')}
+                            ${user.role === 'admin' ? renderMenuBtn('persetujuan', 'fa-file-circle-check', 'Persetujuan', 'bg-red-600') : ''}
+                            ${renderMenuBtn('pesan', 'fa-envelope-open-text', 'Pesan Wali', 'bg-pink-600')}
+                        </div>
+                    </div>
+
+                    <!-- Dasbor Metrics & Summaries -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Siswa Tidak Hadir Hari Ini -->
+                        <div class="solid-card p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-user-xmark text-red-500"></i> Siswa Tidak Hadir Hari Ini
+                                </h3>
+                                <span class="solid-badge bg-red-100 text-red-700">${getAbsentStudentsCount()} Anak</span>
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                                ${renderAbsentStudentsList()}
+                            </div>
+                        </div>
+
+                        <!-- Peminjaman Barang Hari Ini -->
+                        <div class="solid-card p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-hand-holding text-blue-500"></i> Peminjaman Barang Aktif
+                                </h3>
+                                <span class="solid-badge bg-blue-100 text-blue-700">${APP_STATE.db.peminjamanBarang.filter(p => p.status !== 'Kembali Complete').length} Transaksi</span>
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                                ${renderBorrowingList()}
+                            </div>
+                        </div>
+
+                        <!-- Perizinan Siswa Aktif -->
+                        <div class="solid-card p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-file-shield text-emerald-500"></i> Perizinan Siswa Terbaru
+                                </h3>
+                                <span class="solid-badge bg-emerald-100 text-emerald-700">${APP_STATE.db.perizinan.length} Izin</span>
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                                ${renderPerizinanListSummary()}
+                            </div>
+                        </div>
+
+                        <!-- Stok Barang Tersedia -->
+                        <div class="solid-card p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-cubes text-purple-500"></i> Ringkasan Stok Barang
+                                </h3>
+                                <button onclick="setView('databarang')" class="text-xs text-brand-600 font-semibold hover:underline">Lihat Semua</button>
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto text-xs">
+                                ${renderStockSummaryList()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMenuBtn(view, icon, title, bgClass, isActive = false) {
+            return `
+                <button onclick="setView('${view}')" class="flex flex-col items-center p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all text-center">
+                    <div class="w-10 h-10 rounded-xl ${bgClass} text-white flex items-center justify-center text-lg mb-1.5 shadow">
+                        <i class="fa-solid ${icon}"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold text-slate-700 leading-tight">${title}</span>
+                </button>
+            `;
+        }
+
+        function getAbsentStudentsCount() {
+            return APP_STATE.db.absensi.filter(a => a.status !== 'Hadir').length;
+        }
+
+        function renderAbsentStudentsList() {
+            const list = APP_STATE.db.absensi.filter(a => a.status !== 'Hadir');
+            if (list.length === 0) return '<p class="text-slate-400 italic">Semua siswa hadir penuh.</p>';
+            return list.map(a => {
+                const s = APP_STATE.db.siswa.find(x => x.nisn === a.nisn) || { nama: 'Siswa', kelas: '-' };
+                return `
+                    <div class="p-2 border rounded-lg bg-red-50/50 border-red-100 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-slate-800">${s.nama} (${s.kelas})</p>
+                            <p class="text-[10px] text-slate-500">Sesi ${a.session}: ${a.note || 'Tanpa Keterangan'}</p>
+                        </div>
+                        <span class="solid-badge bg-red-100 text-red-700">${a.status}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderBorrowingList() {
+            const list = APP_STATE.db.peminjamanBarang.filter(p => p.status !== 'Kembali Complete');
+            if (list.length === 0) return '<p class="text-slate-400 italic">Tidak ada barang yang dipinjam saat ini.</p>';
+            return list.map(p => `
+                <div class="p-2 border rounded-lg bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800">${p.borrowerName}</p>
+                        <p class="text-[10px] text-slate-500">${p.items.map(i => i.nama + ' (' + i.qty + ')').join(', ')}</p>
+                    </div>
+                    <span class="solid-badge bg-amber-100 text-amber-700">${p.status}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderPerizinanListSummary() {
+            if (APP_STATE.db.perizinan.length === 0) return '<p class="text-slate-400 italic">Belum ada data perizinan.</p>';
+            return APP_STATE.db.perizinan.map(p => {
+                const studentNames = p.nisns.map(nisn => (APP_STATE.db.siswa.find(s=>s.nisn===nisn)?.nama || nisn)).join(', ');
+                return `
+                    <div class="p-2 border rounded-lg bg-slate-50 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-slate-800">${studentNames}</p>
+                            <p class="text-[10px] text-slate-500">Keperluan: ${p.detail.reason}</p>
+                        </div>
+                        <span class="solid-badge bg-emerald-100 text-emerald-800">${p.status}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderStockSummaryList() {
+            return APP_STATE.db.barang.map(b => `
+                <div class="p-2 border rounded-lg bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800">${b.nama}</p>
+                        <p class="text-[10px] text-slate-500">${b.kategori} &bull; ${b.jenis}</p>
+                    </div>
+                    <span class="font-bold text-brand-900">${b.jumlah} unit</span>
+                </div>
+            `).join('');
+        }
+
+        function renderAbsensiView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Absensi Siswa (320 Anak)</h2>
+                    </div>
+
+                    <!-- Session Selector & QR Continuous Button -->
+                    <div class="solid-card p-4 bg-white flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div class="flex items-center space-x-2">
+                            <label class="text-xs font-bold text-slate-700">Pilih Sesi Absen:</label>
+                            <select id="session-select" onchange="APP_STATE.attendanceSession = parseInt(this.value); renderAbsensiStudentList();" class="text-xs p-2 border rounded-xl bg-slate-50 font-bold text-brand-900">
+                                <option value="1" ${APP_STATE.attendanceSession===1?'selected':''}>Sesi 1 (Pagi)</option>
+                                <option value="2" ${APP_STATE.attendanceSession===2?'selected':''}>Sesi 2 (Siang)</option>
+                                <option value="3" ${APP_STATE.attendanceSession===3?'selected':''}>Sesi 3 (Malam)</option>
+                            </select>
+                        </div>
+
+                        <button onclick="startContinuousAttendanceScanner()" class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow">
+                            <i class="fa-solid fa-qrcode text-base"></i> Pindai Continuous QR
+                        </button>
+                    </div>
+
+                    <!-- Filter & Manual Selection -->
+                    <div class="solid-card p-4 bg-white space-y-3">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="absensi-search" oninput="renderAbsensiStudentList()" placeholder="Cari Nama / NISN Siswa..." class="flex-grow text-xs p-2.5 border rounded-xl bg-slate-50">
+                            <select id="absensi-filter-jenjang" onchange="renderAbsensiStudentList()" class="text-xs p-2.5 border rounded-xl bg-slate-50">
+                                <option value="">Semua Jenjang</option>
+                                <option value="SMP">SMP</option>
+                                <option value="SMA">SMA</option>
+                            </select>
+                        </div>
+
+                        <div id="absensi-student-container" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderAbsensiStudentList();
+        }
+
+        function renderAbsensiStudentList() {
+            const search = (document.getElementById('absensi-search')?.value || '').toLowerCase();
+            const jenjang = document.getElementById('absensi-filter-jenjang')?.value || '';
+            const session = APP_STATE.attendanceSession;
+
+            const filtered = APP_STATE.db.siswa.filter(s => {
+                const matchSearch = s.nama.toLowerCase().includes(search) || s.nisn.includes(search);
+                const matchJenjang = !jenjang || s.jenjang === jenjang;
+                return matchSearch && matchJenjang;
+            });
+
+            const container = document.getElementById('absensi-student-container');
+            if (!container) return;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 italic p-2">Tidak ada siswa ditemukan.</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(s => {
+                // Check past attendance rule
+                const session1Record = APP_STATE.db.absensi.find(a => a.nisn === s.nisn && a.session === 1);
+                const currentSessionRecord = APP_STATE.db.absensi.find(a => a.nisn === s.nisn && a.session === session);
+                
+                // Rule: If student was absent in session 1, they cannot scan/absen in session 2+ without note
+                const isBlocked = session > 1 && (!session1Record || session1Record.status !== 'Hadir') && (!currentSessionRecord || !currentSessionRecord.note);
+
+                return `
+                    <div class="p-3 border rounded-xl flex justify-between items-center ${isBlocked ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}">
+                        <div>
+                            <p class="font-bold text-xs text-slate-800">${s.nama} <span class="text-slate-500 font-normal">(${s.jenjang} - ${s.kelas})</span></p>
+                            <p class="text-[10px] text-slate-500">NISN: ${s.nisn}</p>
+                            ${isBlocked ? '<p class="text-[10px] text-amber-700 font-bold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Belum absen/izin di Sesi 1. Wajib isi keterangan!</p>' : ''}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${currentSessionRecord ? `
+                                <span class="solid-badge bg-emerald-100 text-emerald-800">${currentSessionRecord.status}</span>
+                            ` : `
+                                <button onclick="markAttendance('${s.nisn}', 'Hadir')" ${isBlocked ? 'disabled class="bg-slate-300 text-slate-500 text-xs px-3 py-1.5 rounded-lg cursor-not-allowed"' : 'class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg"'}>Hadir</button>
+                                <button onclick="promptAbsenceNote('${s.nisn}')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Izin/Sakit</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function markAttendance(nisn, status, note = '') {
+            const session = APP_STATE.attendanceSession;
+            const existingIndex = APP_STATE.db.absensi.findIndex(a => a.nisn === nisn && a.session === session);
+            const record = { date: new Date().toISOString().split('T')[0], session, nisn, status, note };
+
+            if (existingIndex >= 0) {
+                APP_STATE.db.absensi[existingIndex] = record;
+            } else {
+                APP_STATE.db.absensi.push(record);
+            }
+            renderAbsensiStudentList();
+        }
+
+        function promptAbsenceNote(nisn) {
+            const student = APP_STATE.db.siswa.find(s => s.nisn === nisn);
+            const bodyHtml = `
+                <div class="space-y-3">
+                    <p class="text-xs font-semibold text-slate-700">Isi alasan/keterangan ketidakhadiran untuk <strong>${student.nama}</strong>:</p>
+                    <select id="prompt-status" class="w-full text-xs p-2 border rounded-lg bg-slate-50">
+                        <option value="Izin">Izin</option>
+                        <option value="Sakit">Sakit</option>
+                        <option value="Alpha">Alpha</option>
+                    </select>
+                    <textarea id="prompt-note" placeholder="Tuliskan keterangan detail..." class="w-full text-xs p-2 border rounded-lg bg-slate-50 h-20"></textarea>
+                </div>
+            `;
+            showCustomModal("Input Keterangan Absensi", bodyHtml, () => {
+                const status = document.getElementById('prompt-status').value;
+                const note = document.getElementById('prompt-note').value;
+                markAttendance(nisn, status, note);
+                closeModal();
+            });
+        }
+
+        function startContinuousAttendanceScanner() {
+            openQRScanner((qrText) => {
+                const parts = qrText.split('-').map(s => s.trim());
+                const nisn = parts[0];
+                const student = APP_STATE.db.siswa.find(s => s.nisn === nisn);
+                if (student) {
+                    markAttendance(nisn, 'Hadir');
+                    showModal("Absen Berhasil", `Siswa: ${student.nama} terabsen Sesi ${APP_STATE.attendanceSession}`);
+                } else {
+                    showModal("Scan QR Gagal", "Kode QR tidak sesuai data siswa.", "error");
+                }
+            });
+        }
+
+        function renderPengumumanView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Buat & Kelola Pengumuman</h2>
+                    </div>
+
+                    <!-- Create Announcement Form -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">Form Pengajuan Pengumuman</h3>
+                        <form onsubmit="handlePengumumanSubmit(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Judul Pengumuman</label>
+                                <input type="text" id="pengumuman-judul" required placeholder="Judul pengumuman..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Isi Pengumuman</label>
+                                <textarea id="pengumuman-isi" required placeholder="Tuliskan isi informasi..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50 h-24"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Unggah Scan Pengumuman (Opsional)</label>
+                                <input type="file" accept="image/*" class="w-full text-xs p-1.5 border rounded-xl bg-slate-50">
+                            </div>
+                            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Ajukan Penerbitan ke Humas
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Announcements List -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">Daftar Pengumuman</h3>
+                        <div class="space-y-3">
+                            ${APP_STATE.db.pengumuman.map(p => `
+                                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-slate-800">${p.judul}</h4>
+                                        <p class="text-xs text-slate-600 mt-1">${p.isi}</p>
+                                        <p class="text-[10px] text-slate-400 mt-2">Tanggal: ${p.tanggal} &bull; PJ Humas: ${p.penanggungJawab}</p>
+                                    </div>
+                                    <span class="solid-badge ${p.status==='Disetujui'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}">${p.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handlePengumumanSubmit(e) {
+            e.preventDefault();
+            const judul = document.getElementById('pengumuman-judul').value;
+            const isi = document.getElementById('pengumuman-isi').value;
+
+            APP_STATE.db.pengumuman.push({
+                id: 'P' + (APP_STATE.db.pengumuman.length + 1),
+                judul,
+                isi,
+                penanggungJawab: 'Humas',
+                status: 'Menunggu Persetujuan Humas',
+                tanggal: new Date().toISOString().split('T')[0]
+            });
+
+            showModal("Pengajuan Berhasil", "Pengumuman berhasil diajukan kepada pegawai berwenang (Humas).");
+            renderPengumumanView();
+        }
+
+        function renderPerizinanView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Form Perizinan Siswa</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <form onsubmit="handlePerizinanSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Siswa (Boleh > 1):</label>
+                                <div class="flex gap-2 mb-2">
+                                    <button type="button" onclick="openQRScanner(addStudentToPermission)" class="bg-brand-100 text-brand-800 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-qrcode"></i> Scan QR Siswa
+                                    </button>
+                                </div>
+                                <select id="perizinan-siswa-select" multiple class="w-full text-xs p-2 border rounded-xl bg-slate-50 h-28">
+                                    ${APP_STATE.db.siswa.map(s => `<option value="${s.nisn}">${s.nama} (${s.jenjang} - ${s.kelas})</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal & Jam Mulai</label>
+                                    <input type="datetime-local" id="perizinan-start" required class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal & Jam Kembali</label>
+                                    <input type="datetime-local" id="perizinan-end" required class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan Izin</label>
+                                <textarea id="perizinan-reason" required placeholder="Detail alasan perizinan..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50 h-20"></textarea>
+                            </div>
+
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Ajukan Izin ke Kepala UKSR
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Perizinan List & Print Engine -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">Daftar Perizinan Terbit</h3>
+                        <div class="space-y-3">
+                            ${APP_STATE.db.perizinan.map(p => `
+                                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-bold text-xs text-slate-800">No. Surat: ${p.letterNo}</p>
+                                        <p class="text-xs text-slate-600 mt-1">${p.nisns.map(n => (APP_STATE.db.siswa.find(s=>s.nisn===n)?.nama || n)).join(', ')}</p>
+                                        <p class="text-[10px] text-slate-400 mt-1">Keperluan: ${p.detail.reason}</p>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <button onclick="printPerizinanLetter('${p.id}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                            <i class="fa-solid fa-print"></i> Cetak A4
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addStudentToPermission(qrText) {
+            const nisn = qrText.split('-')[0].trim();
+            const select = document.getElementById('perizinan-siswa-select');
+            if (select) {
+                for (let option of select.options) {
+                    if (option.value === nisn) option.selected = true;
+                }
+            }
+        }
+
+        function handlePerizinanSubmit(e) {
+            e.preventDefault();
+            const select = document.getElementById('perizinan-siswa-select');
+            const selectedNisns = Array.from(select.selectedOptions).map(o => o.value);
+            if (selectedNisns.length === 0) {
+                showModal("Pilih Siswa", "Pilih minimal 1 siswa.", "error");
+                return;
+            }
+
+            const pObj = {
+                id: 'IZIN-' + Date.now(),
+                nisns: selectedNisns,
+                detail: {
+                    startDate: document.getElementById('perizinan-start').value,
+                    returnDate: document.getElementById('perizinan-end').value,
+                    reason: document.getElementById('perizinan-reason').value
+                },
+                status: 'Disetujui Kepala UKSR',
+                approvedBy: 'dr. Hendra Wijaya',
+                letterNo: '421.5/UKSR/' + Math.floor(1000 + Math.random() * 9000) + '/2026'
+            };
+
+            APP_STATE.db.perizinan.push(pObj);
+            showModal("Izin Diterbitkan", "Form perizinan berhasil dibuat dan siap dicetak.");
+            renderPerizinanView();
+        }
+
+        function printPerizinanLetter(id) {
+            const p = APP_STATE.db.perizinan.find(x => x.id === id);
+            if (!p) return;
+
+            const printSection = document.getElementById('print-section');
+            printSection.innerHTML = `
+                <div class="p-8 max-w-2xl mx-auto border font-sans">
+                    <!-- KOP SURAT RESMI -->
+                    <div class="text-center border-b-4 border-black pb-4 mb-6">
+                        <h2 class="text-xl font-bold uppercase">Pemerintah Kota Pasuruan</h2>
+                        <h1 class="text-2xl font-black uppercase">SRT 2 KOTA PASURUAN</h1>
+                        <p class="text-xs italic">Sekolah Berasrama - "Cerdas Bersama, Tumbuh Setara"</p>
+                        <p class="text-xs mt-1">Jl. Pahlawan No. 45, Kota Pasuruan, Jawa Timur | Telp: (0343) 424000</p>
+                    </div>
+
+                    <h3 class="text-center font-bold text-base underline mb-1">SURAT IZIN KELUAR ASRAMA</h3>
+                    <p class="text-center text-xs mb-6">Nomor: ${p.letterNo}</p>
+
+                    <p class="text-xs mb-4">Yang bertanda tangan di bawah ini menerangkan bahwa siswa berikut:</p>
+
+                    <table class="w-full text-xs border-collapse border border-slate-400 mb-6">
+                        <thead>
+                            <tr class="bg-slate-100">
+                                <th class="border border-slate-400 p-2">NISN</th>
+                                <th class="border border-slate-400 p-2">Nama Siswa</th>
+                                <th class="border border-slate-400 p-2">Kelas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${p.nisns.map(n => {
+                                const s = APP_STATE.db.siswa.find(x => x.nisn === n) || {};
+                                return `
+                                    <tr>
+                                        <td class="border border-slate-400 p-2 text-center">${n}</td>
+                                        <td class="border border-slate-400 p-2 font-bold">${s.nama}</td>
+                                        <td class="border border-slate-400 p-2 text-center">${s.kelas}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="text-xs space-y-2 mb-8">
+                        <p><strong>Waktu Izin Mulai:</strong> ${p.detail.startDate}</p>
+                        <p><strong>Waktu Wajib Kembali:</strong> ${p.detail.returnDate}</p>
+                        <p><strong>Keperluan:</strong> ${p.detail.reason}</p>
+                    </div>
+
+                    <!-- Tanda Tangan QR -->
+                    <div class="flex justify-end text-xs mt-12">
+                        <div class="text-center w-48">
+                            <p>Pasuruan, ${new Date().toLocaleDateString('id-ID')}</p>
+                            <p class="font-bold mb-2">Kepala UKSR / Pegawai Berwenang</p>
+                            <div id="print-qr-uksr" class="w-24 h-24 mx-auto my-2 flex items-center justify-center"></div>
+                            <p class="font-bold underline">${p.approvedBy}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            new QRCode(document.getElementById('print-qr-uksr'), {
+                text: `VALIDASI-UKSR-${p.letterNo}`,
+                width: 90,
+                height: 90
+            });
+
+            printSection.classList.remove('hidden');
+            window.print();
+            setTimeout(() => printSection.classList.add('hidden'), 500);
+        }
+
+        function renderKonselingView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Form Konseling Siswa</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <form onsubmit="handleKonselingSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Siswa Konseling:</label>
+                                <select id="konseling-siswa" required class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                    ${APP_STATE.db.siswa.map(s => `<option value="${s.nisn}">${s.nama} (${s.kelas})</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Rincian Masalah</label>
+                                <textarea id="konseling-problem" required placeholder="Jelaskan rincian permasalahan..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50 h-20"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Dampak yang Dirasakan</label>
+                                <textarea id="konseling-impact" required placeholder="Dampak akademik/sosial..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50 h-20"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Solusi / Rekomendasi</label>
+                                <textarea id="konseling-solution" required placeholder="Langkah penanganan..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50 h-20"></textarea>
+                            </div>
+
+                            <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Simpan Laporan Konseling
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Reports List -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">Riwayat Konseling</h3>
+                        <div class="space-y-3">
+                            ${APP_STATE.db.konseling.map(k => {
+                                const student = APP_STATE.db.siswa.find(s=>s.nisn===k.nisn) || {};
+                                return `
+                                    <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
+                                        <div>
+                                            <p class="font-bold text-xs text-slate-800">${student.nama} (${student.kelas})</p>
+                                            <p class="text-xs text-slate-600 mt-1">Masalah: ${k.problem}</p>
+                                            <span class="solid-badge mt-1 inline-block ${k.status==='Selesai'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}">${k.status}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            ${k.status === 'Belum' ? `
+                                                <button onclick="toggleKonselingStatus('${k.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Tandai Selesai</button>
+                                            ` : `
+                                                <button onclick="printKonselingReport('${k.id}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                                    <i class="fa-solid fa-print"></i> Cetak A4
+                                                </button>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleKonselingSubmit(e) {
+            e.preventDefault();
+            const nisn = document.getElementById('konseling-siswa').value;
+            const kObj = {
+                id: 'KONS-' + Date.now(),
+                nisn,
+                problem: document.getElementById('konseling-problem').value,
+                impact: document.getElementById('konseling-impact').value,
+                solution: document.getElementById('konseling-solution').value,
+                status: 'Belum',
+                counselorNip: APP_STATE.currentUser.nip || '198501012010011001',
+                counselorName: APP_STATE.currentUser.name || 'Guru Konseling',
+                letterNo: '421.5/BK/' + Math.floor(1000 + Math.random() * 9000) + '/2026'
+            };
+
+            APP_STATE.db.konseling.push(kObj);
+            showModal("Konseling Disimpan", "Laporan konseling berhasil dibuat.");
+            renderKonselingView();
+        }
+
+        function toggleKonselingStatus(id) {
+            const k = APP_STATE.db.konseling.find(x => x.id === id);
+            if (k) {
+                k.status = 'Selesai';
+                showModal("Status Diperbarui", "Konseling ditandai Selesai dan kini dapat dicetak.");
+                renderKonselingView();
+            }
+        }
+
+        function printKonselingReport(id) {
+            const k = APP_STATE.db.konseling.find(x => x.id === id);
+            if (!k) return;
+            const s = APP_STATE.db.siswa.find(x => x.nisn === k.nisn) || {};
+
+            const printSection = document.getElementById('print-section');
+            printSection.innerHTML = `
+                <div class="p-8 max-w-2xl mx-auto border font-sans">
+                    <div class="text-center border-b-4 border-black pb-4 mb-6">
+                        <h2 class="text-xl font-bold uppercase">Pemerintah Kota Pasuruan</h2>
+                        <h1 class="text-2xl font-black uppercase">SRT 2 KOTA PASURUAN</h1>
+                        <p class="text-xs italic">Sekolah Berasrama - "Cerdas Bersama, Tumbuh Setara"</p>
+                    </div>
+
+                    <h3 class="text-center font-bold text-base underline mb-1">LAPORAN HASIL KONSELING SISWA</h3>
+                    <p class="text-center text-xs mb-6">Nomor: ${k.letterNo}</p>
+
+                    <div class="text-xs space-y-2 mb-6 border-b pb-4">
+                        <p><strong>Nama Siswa:</strong> ${s.nama}</p>
+                        <p><strong>NISN / Kelas:</strong> ${s.nisn} / ${s.kelas}</p>
+                    </div>
+
+                    <div class="text-xs space-y-4 mb-8">
+                        <div>
+                            <p class="font-bold underline mb-1">1. Rincian Masalah:</p>
+                            <p class="p-2 bg-slate-50 border rounded">${k.problem}</p>
+                        </div>
+                        <div>
+                            <p class="font-bold underline mb-1">2. Dampak yang Dirasakan:</p>
+                            <p class="p-2 bg-slate-50 border rounded">${k.impact}</p>
+                        </div>
+                        <div>
+                            <p class="font-bold underline mb-1">3. Solusi & Rekomendasi:</p>
+                            <p class="p-2 bg-slate-50 border rounded">${k.solution}</p>
+                        </div>
+                    </div>
+
+                    <!-- Tanda Tangan QR Kedua Pihak -->
+                    <div class="grid grid-cols-2 text-xs text-center mt-12">
+                        <div>
+                            <p class="font-bold mb-2">Siswa Bersangkutan</p>
+                            <div id="print-qr-siswa-konseling" class="w-20 h-20 mx-auto my-2 flex items-center justify-center"></div>
+                            <p class="font-bold underline">${s.nama}</p>
+                        </div>
+                        <div>
+                            <p class="font-bold mb-2">Guru / Admin Konseling</p>
+                            <div id="print-qr-guru-konseling" class="w-20 h-20 mx-auto my-2 flex items-center justify-center"></div>
+                            <p class="font-bold underline">${k.counselorName}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            new QRCode(document.getElementById('print-qr-siswa-konseling'), { text: `SISWA-${s.nisn}`, width: 80, height: 80 });
+            new QRCode(document.getElementById('print-qr-guru-konseling'), { text: `GURU-${k.counselorNip}`, width: 80, height: 80 });
+
+            printSection.classList.remove('hidden');
+            window.print();
+            setTimeout(() => printSection.classList.add('hidden'), 500);
+        }
+
+        function renderPeminjamanView() {
+            const main = document.getElementById('main-content');
+            // Group borrowable items by category
+            const borrowable = APP_STATE.db.barang.filter(b => b.jenis === 'Dipinjam');
+
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Form Peminjaman Barang</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <form onsubmit="handlePeminjamanSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Barang yang Dipinjam (Per Kategori):</label>
+                                <div class="space-y-2 max-h-48 overflow-y-auto p-2 border rounded-xl bg-slate-50">
+                                    ${borrowable.map(b => `
+                                        <label class="flex items-center justify-between text-xs p-1.5 bg-white border rounded-lg">
+                                            <span><strong>[${b.kategori}]</strong> ${b.nama} (Stok: ${b.jumlah})</span>
+                                            <input type="checkbox" name="borrow-items" value="${b.id}" class="w-4 h-4 text-brand-600">
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Rencana Waktu Pengembalian</label>
+                                    <input type="datetime-local" id="borrow-return-plan" required class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tujuan Penggunaan</label>
+                                    <input type="text" id="borrow-purpose" required placeholder="Tujuan kegiatan..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Ajukan ke Sarpras
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Active Loans List -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">Daftar Peminjaman Barang Aktif</h3>
+                        <div class="space-y-3">
+                            ${APP_STATE.db.peminjamanBarang.map(p => `
+                                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-bold text-xs text-slate-800">Peminjam: ${p.borrowerName}</p>
+                                        <p class="text-xs text-slate-600">Barang: ${p.items.map(i => i.nama).join(', ')}</p>
+                                        <p class="text-[10px] text-slate-400">Rencana Kembali: ${p.returnPlan}</p>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <button onclick="promptReturnItem('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Kembalikan Barang</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handlePeminjamanSubmit(e) {
+            e.preventDefault();
+            const checked = Array.from(document.querySelectorAll('input[name="borrow-items"]:checked')).map(cb => cb.value);
+            if (checked.length === 0) {
+                showModal("Pilih Barang", "Pilih minimal 1 barang.", "error");
+                return;
+            }
+
+            const items = checked.map(id => {
+                const b = APP_STATE.db.barang.find(x => x.id === id);
+                return { id: b.id, nama: b.nama, qty: 1 };
+            });
+
+            const pObj = {
+                id: 'LOAN-' + Date.now(),
+                borrowerId: APP_STATE.currentUser.id,
+                borrowerName: APP_STATE.currentUser.name,
+                items,
+                returnPlan: document.getElementById('borrow-return-plan').value,
+                purpose: document.getElementById('borrow-purpose').value,
+                status: 'Dipinjam',
+                letterNo: '421.5/SARPRAS/' + Math.floor(1000 + Math.random() * 9000) + '/2026'
+            };
+
+            APP_STATE.db.peminjamanBarang.push(pObj);
+            showModal("Pengajuan Berhasil", "Pengajuan peminjaman barang diserahkan ke Sarpras.");
+            renderPeminjamanView();
+        }
+
+        function promptReturnItem(id) {
+            const p = APP_STATE.db.peminjamanBarang.find(x => x.id === id);
+            const isLate = new Date() > new Date(p.returnPlan);
+
+            const bodyHtml = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-700">Pengembalian barang untuk: <strong>${p.borrowerName}</strong></p>
+                    ${isLate ? '<p class="text-xs text-red-600 font-bold"><i class="fa-solid fa-clock"></i> Pengembalian MELEWATI batas waktu rencana!</p>' : ''}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Keterangan / Status Pengembalian</label>
+                        <textarea id="return-note" placeholder="${isLate ? 'Wajib isi alasan keterlambatan...' : 'Kondisi barang saat kembali...'}" class="w-full text-xs p-2 border rounded-lg bg-slate-50 h-20"></textarea>
+                    </div>
+                </div>
+            `;
+
+            showCustomModal("Proses Pengembalian", bodyHtml, () => {
+                p.status = 'Kembali Complete';
+                showModal("Pengembalian Berhasil", "Barang telah sepenuhnya dikembalikan ke Sarpras.");
+                renderPeminjamanView();
+                closeModal();
+            });
+        }
+
+        function renderPengambilanView() {
+            const main = document.getElementById('main-content');
+            const consumables = APP_STATE.db.barang.filter(b => b.jenis === 'Diambil');
+
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Form Pengambilan Barang (Habis Pakai)</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <div class="space-y-3">
+                            <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Daftar Barang Diambil Per Kategori</h3>
+                            ${consumables.map(c => `
+                                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-bold text-xs text-slate-800">[${c.kategori}] ${c.nama}</p>
+                                        <p class="text-[10px] text-slate-500">Stok Tersedia: ${c.jumlah} unit</p>
+                                    </div>
+                                    <button onclick="takeConsumableItem('${c.id}')" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs">
+                                        Ambil Barang
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function takeConsumableItem(id) {
+            const b = APP_STATE.db.barang.find(x => x.id === id);
+            if (b && b.jumlah > 0) {
+                b.jumlah -= 1;
+                showModal("Berhasil Ambil", `1 unit ${b.nama} telah diambil. Sisa stok: ${b.jumlah}`);
+                renderPengambilanView();
+            } else {
+                showModal("Stok Habis", "Barang ini tidak tersedia.", "error");
+            }
+        }
+
+        function renderDistribusiView() {
+            const main = document.getElementById('main-content');
+            const distItems = APP_STATE.db.barang.filter(b => b.jenis === 'Distribusi');
+
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Form Distribusi Barang Ke Siswa</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <form onsubmit="handleDistribusiSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Siswa Penerima (Dipisah Per Jenjang):</label>
+                                <select id="dist-siswa-select" multiple class="w-full text-xs p-2 border rounded-xl bg-slate-50 h-28">
+                                    ${APP_STATE.db.siswa.map(s => `<option value="${s.nisn}">${s.jenjang} - ${s.nama} (${s.kelas})</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Barang Distribusi:</label>
+                                <select id="dist-item-select" class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                    ${distItems.map(d => `<option value="${d.id}">[${d.kategori}] ${d.nama} (Stok: ${d.jumlah})</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Per Anak</label>
+                                <input type="number" id="dist-qty" value="1" min="1" class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                            </div>
+
+                            <button type="submit" class="bg-orange-600 hover:bg-orange-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Bagikan Barang
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleDistribusiSubmit(e) {
+            e.preventDefault();
+            const select = document.getElementById('dist-siswa-select');
+            const selectedNisns = Array.from(select.selectedOptions).map(o => o.value);
+            if (selectedNisns.length === 0) {
+                showModal("Pilih Siswa", "Pilih minimal 1 siswa penerima.", "error");
+                return;
+            }
+
+            const itemId = document.getElementById('dist-item-select').value;
+            const qty = parseInt(document.getElementById('dist-qty').value);
+            const b = APP_STATE.db.barang.find(x => x.id === itemId);
+
+            const totalNeeded = qty * selectedNisns.length;
+            if (b.jumlah < totalNeeded) {
+                showModal("Stok Kurang", `Stok ${b.nama} (${b.jumlah}) tidak cukup untuk ${selectedNisns.length} siswa x ${qty} unit.`, "error");
+                return;
+            }
+
+            b.jumlah -= totalNeeded;
+            showModal("Distribusi Selesai", `Berhasil membagikan ${b.nama} kepada ${selectedNisns.length} siswa.`);
+            renderDistribusiView();
+        }
+
+        function renderDataSiswaView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Data Siswa</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white space-y-3">
+                        <div class="flex flex-col sm:flex-row gap-2 justify-between">
+                            <input type="text" id="siswa-live-search" oninput="filterDataSiswa()" placeholder="Cari NISN, Nama, Kelas, Alamat secara langsung..." class="flex-grow text-xs p-2.5 border rounded-xl bg-slate-50">
+                            <button onclick="window.print()" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-print"></i> Cetak Daftar Siswa
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b">
+                                        <th class="p-2">Foto</th>
+                                        <th class="p-2">NISN</th>
+                                        <th class="p-2">Jenjang/Kelas</th>
+                                        <th class="p-2">Nama</th>
+                                        <th class="p-2">TTL</th>
+                                        <th class="p-2">Alamat</th>
+                                        <th class="p-2">No. HP Ortu</th>
+                                        <th class="p-2 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="siswa-table-body">
+                                    <!-- Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            filterDataSiswa();
+        }
+
+        function filterDataSiswa() {
+            const query = (document.getElementById('siswa-live-search')?.value || '').toLowerCase();
+            const tbody = document.getElementById('siswa-table-body');
+            if (!tbody) return;
+
+            const filtered = APP_STATE.db.siswa.filter(s => 
+                s.nisn.toLowerCase().includes(query) ||
+                s.nama.toLowerCase().includes(query) ||
+                s.jenjang.toLowerCase().includes(query) ||
+                s.kelas.toLowerCase().includes(query) ||
+                s.alamat.toLowerCase().includes(query)
+            );
+
+            tbody.innerHTML = filtered.map(s => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2"><img src="${s.photo}" class="w-8 h-8 rounded-full object-cover"></td>
+                    <td class="p-2 font-mono font-bold">${s.nisn}</td>
+                    <td class="p-2">${s.jenjang} - ${s.kelas}</td>
+                    <td class="p-2 font-bold text-slate-800">${s.nama}</td>
+                    <td class="p-2">${s.ttl}</td>
+                    <td class="p-2">${s.alamat}</td>
+                    <td class="p-2">${s.noHpOrtu}</td>
+                    <td class="p-2 text-center">
+                        <button onclick="showSiswaQRModal('${s.nisn}', '${s.nama}')" class="bg-brand-600 text-white px-2 py-1 rounded text-[10px] font-bold">QR</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function showSiswaQRModal(nisn, nama) {
+            const bodyHtml = `
+                <div class="text-center p-3 space-y-3">
+                    <p class="font-bold text-sm text-slate-800">${nama}</p>
+                    <p class="text-xs text-slate-500 font-mono">${nisn}</p>
+                    <div id="modal-qr-container" class="w-40 h-40 mx-auto flex items-center justify-center p-2 bg-white border rounded-xl"></div>
+                </div>
+            `;
+            showCustomModal("Kode QR Siswa", bodyHtml, () => closeModal());
+            setTimeout(() => {
+                new QRCode(document.getElementById('modal-qr-container'), { text: `${nisn} - ${nama}`, width: 140, height: 140 });
+            }, 100);
+        }
+
+        function renderDataPetugasView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Data Petugas / Guru / Pegawai</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white space-y-3">
+                        <input type="text" id="petugas-live-search" oninput="filterDataPetugas()" placeholder="Cari NIP, Nama, Jabatan..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b">
+                                        <th class="p-2">Foto</th>
+                                        <th class="p-2">NIP/NIK</th>
+                                        <th class="p-2">Nama</th>
+                                        <th class="p-2">Jabatan</th>
+                                        <th class="p-2">No. HP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="petugas-table-body">
+                                    <!-- Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            filterDataPetugas();
+        }
+
+        function filterDataPetugas() {
+            const query = (document.getElementById('petugas-live-search')?.value || '').toLowerCase();
+            const tbody = document.getElementById('petugas-table-body');
+            if (!tbody) return;
+
+            const filtered = APP_STATE.db.petugas.filter(p => 
+                p.nip.toLowerCase().includes(query) ||
+                p.nama.toLowerCase().includes(query) ||
+                p.jabatan.toLowerCase().includes(query)
+            );
+
+            tbody.innerHTML = filtered.map(p => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2"><img src="${p.photo}" class="w-8 h-8 rounded-full object-cover"></td>
+                    <td class="p-2 font-mono font-bold">${p.nip}</td>
+                    <td class="p-2 font-bold text-slate-800">${p.nama}</td>
+                    <td class="p-2">${p.jabatan}</td>
+                    <td class="p-2">${p.noHp}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderDataBarangView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Data Barang Sekolah</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white space-y-3">
+                        <input type="text" id="barang-live-search" oninput="filterDataBarang()" placeholder="Cari Kategori, Nama Barang..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b">
+                                        <th class="p-2">Foto</th>
+                                        <th class="p-2">Kategori</th>
+                                        <th class="p-2">Jenis Sarpras</th>
+                                        <th class="p-2">Nama Barang</th>
+                                        <th class="p-2">Jumlah Stok</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="barang-table-body">
+                                    <!-- Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            filterDataBarang();
+        }
+
+        function filterDataBarang() {
+            const query = (document.getElementById('barang-live-search')?.value || '').toLowerCase();
+            const tbody = document.getElementById('barang-table-body');
+            if (!tbody) return;
+
+            const filtered = APP_STATE.db.barang.filter(b => 
+                b.kategori.toLowerCase().includes(query) ||
+                b.jenis.toLowerCase().includes(query) ||
+                b.nama.toLowerCase().includes(query)
+            );
+
+            tbody.innerHTML = filtered.map(b => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2"><img src="${b.photo}" class="w-8 h-8 rounded-lg object-cover"></td>
+                    <td class="p-2 font-semibold">${b.kategori}</td>
+                    <td class="p-2"><span class="solid-badge bg-slate-100 text-slate-700">${b.jenis}</span></td>
+                    <td class="p-2 font-bold text-slate-800">${b.nama}</td>
+                    <td class="p-2 font-bold text-brand-900">${b.jumlah} unit</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderProfilView() {
+            const user = APP_STATE.currentUser;
+            const main = document.getElementById('main-content');
+
+            main.innerHTML = `
+                <div class="space-y-4 max-w-xl mx-auto">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Profil Pengguna</h2>
+                    </div>
+
+                    <div class="solid-card p-6 bg-white text-center">
+                        <img src="${user.photo || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'}" class="w-24 h-24 rounded-full mx-auto object-cover mb-3 shadow-md border-2 border-brand-500">
+                        <h3 class="font-bold text-slate-900 text-lg">${user.name}</h3>
+                        <p class="text-xs text-brand-800 font-semibold">${user.nip ? 'NIP: ' + user.nip : 'NISN/NIW: ' + (user.nisn || user.niw)}</p>
+                        <p class="text-xs text-slate-500 mb-4">${user.jabatan || user.subRole}</p>
+
+                        <button onclick="printIDCard()" class="bg-brand-900 text-white px-4 py-2 rounded-xl text-xs font-bold mb-4 flex items-center justify-center gap-2 mx-auto">
+                            <i class="fa-solid fa-address-card"></i> Cetak Kartu Login Akses
+                        </button>
+
+                        <div class="border-t pt-4 text-left">
+                            <h4 class="font-bold text-xs text-slate-700 uppercase mb-2">Ganti Kata Sandi Login:</h4>
+                            <div class="space-y-2">
+                                <input type="password" id="new-pass" placeholder="Password Baru..." class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                <button onclick="changePassword()" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold w-full">Update Password</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function printIDCard() {
+            const user = APP_STATE.currentUser;
+            const printSection = document.getElementById('print-section');
+            printSection.innerHTML = `
+                <div class="p-6 max-w-xs mx-auto border-2 border-brand-900 rounded-2xl bg-white text-center font-sans">
+                    <div class="flex items-center justify-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-brand-900 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <div class="text-left">
+                            <h4 class="font-bold text-xs text-brand-900 leading-tight">SRT 2 KOTA PASURUAN</h4>
+                            <p class="text-[9px] text-slate-500">Kartu Akses Digital PWA</p>
+                        </div>
+                    </div>
+                    <img src="${user.photo || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'}" class="w-20 h-20 rounded-full mx-auto object-cover border my-2">
+                    <h3 class="font-bold text-sm text-slate-800">${user.name}</h3>
+                    <p class="text-[10px] text-slate-600">${user.nip || user.nisn || user.niw}</p>
+                    <p class="text-[10px] text-brand-800 font-bold mb-3">${user.jabatan || user.subRole}</p>
+                    <div id="print-qr-idcard" class="w-28 h-28 mx-auto flex items-center justify-center p-1 border bg-slate-50 rounded-xl"></div>
+                </div>
+            `;
+
+            new QRCode(document.getElementById('print-qr-idcard'), {
+                text: `${user.nip || user.nisn || user.niw} - ${user.name}`,
+                width: 100,
+                height: 100
+            });
+
+            printSection.classList.remove('hidden');
+            window.print();
+            setTimeout(() => printSection.classList.add('hidden'), 500);
+        }
+
+        function changePassword() {
+            const pass = document.getElementById('new-pass').value;
+            if (pass.length < 4) {
+                showModal("Password Lemah", "Password minimal 4 karakter.", "error");
+                return;
+            }
+            showModal("Password Diperbarui", "Password baru telah tersimpan di memori sistem.");
+        }
+
+        function renderRekapSayaView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Rekap Aktivitas Saya</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <p class="text-xs text-slate-600 mb-3">Seluruh riwayat transaksi perizinan, konseling, dan peminjaman oleh akun ini:</p>
+                        <div class="space-y-2 text-xs">
+                            <div class="p-2 border rounded-lg bg-slate-50">
+                                <p class="font-bold">Aktivitas Sistem Aktif</p>
+                                <p class="text-slate-500 text-[10px]">Terdaftar sejak: 2026-09-01</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPersetujuanView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Pusat Persetujuan (Authorized Staff)</h2>
+                    </div>
+
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-3">Daftar Pengajuan Butuh Verifikasi</h3>
+                        <div class="space-y-2 text-xs">
+                            ${APP_STATE.db.pengumuman.filter(p=>p.status!=='Disetujui').map(p => `
+                                <div class="p-3 border rounded-xl bg-amber-50 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-bold text-slate-800">${p.judul}</p>
+                                        <p class="text-slate-500">${p.isi}</p>
+                                    </div>
+                                    <button onclick="p.status='Disetujui'; renderPersetujuanView();" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold">Setujui Humas</button>
+                                </div>
+                            `).join('') || '<p class="text-slate-400 italic">Semua persetujuan selesai.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPesanView() {
+            const main = document.getElementById('main-content');
+            main.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <button onclick="setView('dashboard')" class="text-xs font-semibold text-brand-700 hover:underline">&larr; Kembali ke Dasbor</button>
+                        <h2 class="font-bold text-slate-800 text-base">Pesan Surat Siswa & Wali</h2>
+                    </div>
+
+                    <!-- Admin Upload Letter Section -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-3">Kirim Digitasi Surat Fisik Siswa ke Orang Tua</h3>
+                        <form onsubmit="handleSendLetterSubmit(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Siswa Pengirim Surat:</label>
+                                <select id="pesan-siswa-select" class="w-full text-xs p-2.5 border rounded-xl bg-slate-50">
+                                    ${APP_STATE.db.siswa.map(s => `<option value="${s.nisn}">${s.nama} (${s.kelas})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Potret / Upload Foto Surat Siswa:</label>
+                                <input type="file" accept="image/*" required class="w-full text-xs p-1.5 border rounded-xl bg-slate-50">
+                            </div>
+                            <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">
+                                Kirim ke Orang Tua
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Messages Log -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-3">Riwayat Pesan Terkirim</h3>
+                        <div class="space-y-3">
+                            ${APP_STATE.db.pesan.map(msg => `
+                                <div class="p-3 border rounded-xl bg-slate-50 space-y-2">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="font-bold text-slate-800">Siswa NISN: ${msg.nisn}</span>
+                                        <span class="text-[10px] text-slate-400">${msg.date}</span>
+                                    </div>
+                                    <img src="${msg.image}" class="w-32 h-20 object-cover rounded-lg border">
+                                    <div class="p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
+                                        <strong>Balasan Orang Tua:</strong> ${msg.replyText || 'Belum ada balasan.'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleSendLetterSubmit(e) {
+            e.preventDefault();
+            const nisn = document.getElementById('pesan-siswa-select').value;
+            const student = APP_STATE.db.siswa.find(s => s.nisn === nisn);
+
+            APP_STATE.db.pesan.push({
+                id: 'MSG-' + Date.now(),
+                nisn,
+                parentNiw: student.parentNiw,
+                sender: 'Siswa (Scan Surat)',
+                image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400',
+                replyText: '',
+                date: new Date().toISOString().split('T')[0]
+            });
+
+            showModal("Surat Terkirim", "Digitasi surat fisik berhasil dikirimkan ke portal Orang Tua.");
+            renderPesanView();
+        }
+
+        function renderParentDashboard(container) {
+            const parentNiw = APP_STATE.currentUser.niw;
+            // Find linked sibling children under same parent NIW
+            const children = APP_STATE.db.siswa.filter(s => s.parentNiw === parentNiw);
+            const parentMessages = APP_STATE.db.pesan.filter(m => m.parentNiw === parentNiw);
+
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <!-- School Header & Linked Siblings info -->
+                    <div class="solid-card p-4 bg-brand-900 text-white">
+                        <h2 class="font-bold text-base">Portal Wali / Orang Tua Santri</h2>
+                        <p class="text-xs text-blue-200">NIW: ${parentNiw}</p>
+                        
+                        <div class="mt-3 border-t border-blue-800 pt-3">
+                            <p class="text-xs font-semibold mb-1">Anak Bersaudara Terhubung (${children.length} Santri):</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${children.map(c => `
+                                    <span class="bg-white/20 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                                        <i class="fa-solid fa-child"></i> ${c.nama} (${c.kelas})
+                                    </span>
+                                me`).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Announcements Tab for Parents -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-bullhorn text-amber-600"></i> Pengumuman Sekolah
+                        </h3>
+                        <div class="space-y-2">
+                            ${APP_STATE.db.pengumuman.filter(p=>p.status==='Disetujui').map(p=>`
+                                <div class="p-3 border rounded-xl bg-slate-50">
+                                    <h4 class="font-bold text-xs text-slate-800">${p.judul}</h4>
+                                    <p class="text-xs text-slate-600 mt-1">${p.isi}</p>
+                                </div>
+                            `).join('') || '<p class="text-xs text-slate-400 italic">Belum ada pengumuman.</p>'}
+                        </div>
+                    </div>
+
+                    <!-- Messages Tab for Parents (Only Reply Enabled) -->
+                    <div class="solid-card p-4 bg-white">
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-envelope text-pink-600"></i> Surat Dari Anak
+                        </h3>
+                        <div class="space-y-4">
+                            ${parentMessages.map(msg => {
+                                const child = APP_STATE.db.siswa.find(s=>s.nisn===msg.nisn) || {};
+                                return `
+                                    <div class="p-3 border rounded-xl bg-slate-50 space-y-3">
+                                        <div class="flex justify-between text-xs font-bold text-slate-800">
+                                            <span>Surat dari: ${child.nama}</span>
+                                            <span class="text-[10px] text-slate-400">${msg.date}</span>
+                                        </div>
+                                        <img src="${msg.image}" class="w-full max-h-48 object-cover rounded-xl border">
+                                        
+                                        <!-- Reply Form -->
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 mb-1">Balasan Teks Orang Tua:</label>
+                                            <div class="flex gap-2">
+                                                <input type="text" id="reply-text-${msg.id}" value="${msg.replyText}" placeholder="Tuliskan pesan balasan..." class="flex-grow text-xs p-2 border rounded-xl bg-white">
+                                                <button onclick="saveParentReply('${msg.id}')" class="bg-brand-900 text-white font-bold px-3 py-2 rounded-xl text-xs">Balas</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') || '<p class="text-xs text-slate-400 italic">Belum ada surat masuk.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveParentReply(msgId) {
+            const input = document.getElementById(`reply-text-${msgId}`);
+            const msg = APP_STATE.db.pesan.find(m => m.id === msgId);
+            if (msg && input) {
+                msg.replyText = input.value;
+                showModal("Balasan Terkirim", "Pesan balasan Anda telah diteruskan ke pihak sekolah.");
+            }
+        }
+
+        function openQRScanner(callback) {
+            APP_STATE.activeScanCallback = callback;
+            const modal = document.getElementById('qr-modal');
+            modal.classList.remove('hidden');
+
+            // Populate camera devices
+            Html5Qrcode.getCameras().then(devices => {
+                const select = document.getElementById('camera-select');
+                select.innerHTML = '';
+                if (devices && devices.length > 0) {
+                    APP_STATE.cameras = devices;
+                    devices.forEach((dev, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = dev.id;
+                        opt.innerText = dev.label || `Kamera ${idx + 1}`;
+                        select.appendChild(opt);
+                    });
+                    APP_STATE.selectedCameraId = devices[0].id;
+                    startScannerInstance();
+                } else {
+                    select.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+                }
+            }).catch(err => {
+                showModal("Izin Kamera", "Gagal mengakses kamera perangkat.", "error");
+                closeQRScanner();
+            });
+        }
+
+        function startScannerInstance() {
+            if (APP_STATE.qrScannerInstance) {
+                APP_STATE.qrScannerInstance.stop().then(() => {
+                    initHtml5Scanner();
+                }).catch(() => initHtml5Scanner());
+            } else {
+                initHtml5Scanner();
+            }
+        }
+
+        function initHtml5Scanner() {
+            APP_STATE.qrScannerInstance = new Html5Qrcode("qr-reader");
+            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+            APP_STATE.qrScannerInstance.start(
+                APP_STATE.selectedCameraId,
+                config,
+                (decodedText) => {
+                    // Debounce & stop video stream on success
+                    closeQRScanner();
+                    if (APP_STATE.activeScanCallback) {
+                        APP_STATE.activeScanCallback(decodedText);
+                    }
+                },
+                (errorMessage) => {
+                    // Ignore scan retry frames
+                }
+            );
+        }
+
+        function changeCamera() {
+            const select = document.getElementById('camera-select');
+            APP_STATE.selectedCameraId = select.value;
+            startScannerInstance();
+        }
+
+        function closeQRScanner() {
+            if (APP_STATE.qrScannerInstance) {
+                APP_STATE.qrScannerInstance.stop().then(() => {
+                    APP_STATE.qrScannerInstance.clear();
+                    APP_STATE.qrScannerInstance = null;
+                }).catch(() => {
+                    APP_STATE.qrScannerInstance = null;
+                });
+            }
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        function showModal(title, bodyText, type = 'info') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerText = bodyText;
+            const icon = document.getElementById('modal-icon');
+            if (type === 'error') {
+                icon.className = 'fa-solid fa-circle-xmark text-red-600';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-emerald-600';
+            }
+            document.getElementById('global-modal').classList.remove('hidden');
+        }
+
+        function showCustomModal(title, htmlContent, onConfirm) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = htmlContent;
+            
+            const footer = document.getElementById('modal-footer');
+            footer.innerHTML = `
+                <button onclick="closeModal()" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold">Batal</button>
+                <button id="modal-confirm-btn" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold">Simpan</button>
+            `;
+            document.getElementById('modal-confirm-btn').onclick = onConfirm;
+            document.getElementById('global-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('global-modal').classList.add('hidden');
+        }
+
+        function showGasModal() {
+            document.getElementById('gas-modal').classList.remove('hidden');
+        }
+
+        function closeGasModal() {
+            document.getElementById('gas-modal').classList.add('hidden');
+        }
+
+        function toggleApiMode(mode) {
+            APP_STATE.apiMode = mode;
+            if (mode === 'gas') {
+                const url = prompt("Masukkan Web App URL Google Apps Script:");
+                if (url) {
+                    APP_STATE.gasApiUrl = url;
+                    localStorage.setItem('srt2_gas_url', url);
+                    showModal("API Terhubung", "Aplikasi disetel ke Google Spreadsheet Backend.");
+                }
+            } else {
+                localStorage.removeItem('srt2_gas_url');
+                showModal("Mode Demo", "Aplikasi berjalan dalam mode simulasi lokal.");
+            }
+        }
+
+        function generateGasScriptText() {
+            const gasCode = `/**
+ * Google Apps Script Backend Server for SRT 2 Kota Pasuruan SuperApp
+ * Copy & Paste this full code into Code.gs attached to Google Sheets
+ */
+
+function doGet(e) {
+  var action = e.parameter.action || 'getData';
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  if (action === 'getData') {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      data: getSheetsData(ss)
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = payload.sheet;
+    var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+    
+    sheet.appendRow(payload.row);
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      message: 'Data successfully recorded in Google Sheets'
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function getSheetsData(ss) {
+  var result = {};
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var name = sheets[i].getName();
+    var values = sheets[i].getDataRange().getValues();
+    result[name] = values;
+  }
+  return result;
+}`;
+            document.getElementById('gas-code-text').innerText = gasCode;
+        }
+
+        function copyGasCode() {
+            const text = document.getElementById('gas-code-text').innerText;
+            navigator.clipboard.writeText(text);
+            showModal("Berhasil Disalin", "Kode backend Apps Script berhasil disalin ke clipboard.");
+        }
+    </script>
+</body>
+</html>
