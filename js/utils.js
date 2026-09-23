@@ -2,8 +2,39 @@
  * utils.js - Helper umum
  */
 
+let _loadingCount = 0;
+
+export function showLoading(msg = 'Memuat...') {
+  _loadingCount++;
+  let el = document.getElementById('global-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'global-loading';
+    el.innerHTML = `
+      <div class="loading-backdrop">
+        <div class="loading-box">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">${msg}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+  } else {
+    el.querySelector('.loading-text').textContent = msg;
+    el.classList.remove('hidden');
+  }
+}
+
+export function hideLoading() {
+  _loadingCount = Math.max(0, _loadingCount - 1);
+  if (_loadingCount === 0) {
+    const el = document.getElementById('global-loading');
+    if (el) el.classList.add('hidden');
+  }
+}
+
 export function toast(msg, type = 'info') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   el.textContent = msg;
