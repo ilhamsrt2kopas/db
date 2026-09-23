@@ -5,21 +5,32 @@ import { api } from '../api.js';
 import { toast, escapeHtml, formatDate } from '../utils.js';
 
 export async function render(container, user) {
-  if (!user.berwenang) {
+  const canApprove = !!(user.berwenang) ||
+    user.berwenang === 'Semua' ||
+    /kepala\s*sekolah/i.test(String(user.jabatan || ''));
+
+  if (!canApprove) {
     container.innerHTML = '<div class="empty">Anda tidak memiliki wewenang persetujuan</div>';
     return;
   }
 
+  const label = user.berwenang === 'Semua' || /kepala\s*sekolah/i.test(String(user.jabatan || ''))
+    ? 'Semua Wewenang'
+    : user.berwenang;
+
   container.innerHTML = `
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Menunggu Persetujuan (${user.berwenang})</div>
+        <div class="card-title">Menunggu Persetujuan (${label})</div>
       </div>
       <div id="list-pending"><div class="empty">Memuat...</div></div>
     </div>
   `;
 
-  const res = await api('getPendingApproval', { berwenang: user.berwenang });
+  const res = await api('getPendingApproval', {
+    berwenang: user.berwenang || 'Semua',
+    jabatan: user.jabatan || ''
+  });
   const list = res.data || [];
   const el = document.getElementById('list-pending');
 
