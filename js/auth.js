@@ -23,6 +23,7 @@ export function setUser(user) {
 
 export function clearUser() {
   localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.clear();
   clearCache();
 }
 
@@ -41,7 +42,6 @@ export async function loginAdmin(nip, password) {
 export async function loginQR(code) {
   const res = await api('loginQR', { code });
   if (res.success) {
-    // Siswa tidak diizinkan login penuh (hanya untuk absensi context)
     if (res.data.type === 'siswa') {
       return { success: false, message: 'Siswa tidak dapat login. Gunakan akun Orang Tua atau Admin.', siswaData: res.data };
     }
@@ -50,7 +50,22 @@ export async function loginQR(code) {
   return res;
 }
 
-export function logout() {
+/**
+ * Logout bersih: hapus storage + cache SW, lalu navigasi ke root
+ * (hindari state "terputus" yang butuh refresh manual)
+ */
+export async function logout() {
   clearUser();
-  location.reload();
+
+  // Hapus cache Service Worker agar request berikutnya segar
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (_) {}
+
+  // Navigasi penuh ke halaman utama (bukan reload state lama)
+  const base = location.pathname.replace(/\/[^/]*$/, '/') || '/';
+  location.replace(base + 'index.html?t=' + Date.now());
 }
