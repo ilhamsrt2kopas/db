@@ -666,3 +666,98 @@ a { color: var(--primary); text-decoration: none; }
   border-radius: 8px;
   cursor: pointer;
 }
+
+/* Filter chips */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--gray-300);
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+.chip:active { transform: scale(0.96); }
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Absensi legend & progress */
+.absen-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin: 8px 0;
+}
+.absen-legend b {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.75rem;
+  margin-right: 2px;
+}
+.lg-h { background: #057a55; }
+.lg-s { background: #c27803; }
+.lg-i { background: #1a56db; }
+.lg-a { background: #e02424; }
+
+.absen-progress {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: var(--gray-700);
+}
+
+.kelas-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  padding: 8px 0 4px;
+}
+
+.absen-list { max-height: 55dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.absen-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+.absen-info { flex: 1; min-width: 0; }
+.absen-info .name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.absen-info .meta { font-size: 0.75rem; color: var(--gray-500); }
+
+.absen-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.abtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: 2px solid transparent;
+  color: #fff;
+  opacity: 0.45;
+  transition: opacity 0.12s, transform 0.1s;
+}
+.abtn:active { transform: scale(0.92); }
+.abtn.on { opacity: 1; box-shadow: 0 0 0 2px rgba(0,0,0,0.08); }
+.btn-h { background: #057a55; }
+.btn-s { background: #c27803; }
+.btn-i { background: #1a56db; }
+.btn-a { background: #e02424; }
