@@ -56,8 +56,12 @@ function renderSidebar() {
   let html = '';
   let lastSection = null;
 
+  const canApprove = !!(currentUser.berwenang) ||
+    /kepala\s*sekolah/i.test(String(currentUser.jabatan || '')) ||
+    currentUser.berwenang === 'Semua';
+
   menus.forEach(m => {
-    if (m.berwenangOnly && !currentUser.berwenang) return;
+    if (m.berwenangOnly && !canApprove) return;
     if (m.section && m.section !== lastSection) {
       html += `<li class="nav-section">${m.section}</li>`;
       lastSection = m.section;
