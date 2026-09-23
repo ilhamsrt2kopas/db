@@ -1,16 +1,14 @@
 /**
- * api.js - Wrapper panggilan ke Google Apps Script
+ * api.js - Komunikasi dengan Google Apps Script
  *
- * Strategi (urut prioritas):
- * 1. GET dengan parameter (paling andal, tidak kena preflight CORS)
- * 2. POST text/plain (hindari preflight)
- * 3. JSONP via <script> tag (fallback terakhir)
+ * UTAMA: JSONP (script tag) → tidak kena CORS sama sekali
+ * CADANGAN: GET fetch, lalu POST text/plain
  */
 
 import { API_URL } from './config.js';
-import { getCache, setCache } from './utils.js';
+import { getCache, setCache, showLoading, hideLoading } from './utils.js';
 
-export async function api(action, data = {}, { cacheKey = null, cacheTTL = 0 } = {}) {
+export async function api(action, data = {}, { cacheKey = null, cacheTTL = 0, silent = false } = {}) {
   if (!API_URL || API_URL.includes('GANTI_DENGAN')) {
     return {
       success: false,
@@ -23,135 +21,129 @@ export async function api(action, data = {}, { cacheKey = null, cacheTTL = 0 } =
     if (cached) return cached;
   }
 
-  const payload = { action, ...data };
+  if (!silent) showLoading('Memuat data...');
 
-  // --- Method 1: GET (paling kompatibel dengan Apps Script) ---
   try {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    // Kirim seluruh data sebagai satu JSON string agar objek/array tidak rusak
-    params.set('payload', JSON.stringify(data));
-    // Juga kirim field sederhana agar e.parameter langsung terbaca
-    for (const [k, v] of Object.entries(data)) {
-      if (v === null || v === undefined) continue;
-      if (typeof v === 'object') {
-        params.set(k, JSON.stringify(v));
-      } else {
-        params.set(k, String(v));
-      }
-    }
+    // === METODE UTAMA: JSONP (bebas CORS) ===
+    const json = await jsonpRequest(action, data);
 
-    const url = `${API_URL}?${params.toString()}`;
-    const res = await fetch(url, {
+    if (cacheKey && json && json.success) {
+      setCache(cacheKey, json, cacheTTL || 5 * 60 * 1000);
+    }
+    if (!silent) hideLoading();
+    return json;
+  } catch (errJsonp) {
+    console.warn('JSONP gagal, coba GET...', errJsonp.message);
+  }
+
+  try {
+    // === CADANGAN 1: GET ===
+    const params = buildParams(action, data);
+    const res = await fetch(`${API_URL}?${params.toString()}`, {
       method: 'GET',
       redirect: 'follow',
-      credentials: 'omit'
+      credentials: 'omit',
+      mode: 'cors'
     });
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-
     const text = await res.text();
     const json = parseResponse(text);
 
     if (cacheKey && json.success) {
       setCache(cacheKey, json, cacheTTL || 5 * 60 * 1000);
     }
+    if (!silent) hideLoading();
     return json;
-  } catch (err1) {
-    console.warn('API GET gagal, coba POST...', err1.message);
+  } catch (errGet) {
+    console.warn('GET gagal, coba POST...', errGet.message);
   }
 
-  // --- Method 2: POST text/plain (hindari CORS preflight) ---
   try {
+    // === CADANGAN 2: POST text/plain ===
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ action, ...data }),
       redirect: 'follow',
-      credentials: 'omit'
+      credentials: 'omit',
+      mode: 'cors'
     });
-
     const text = await res.text();
     const json = parseResponse(text);
 
     if (cacheKey && json.success) {
       setCache(cacheKey, json, cacheTTL || 5 * 60 * 1000);
     }
+    if (!silent) hideLoading();
     return json;
-  } catch (err2) {
-    console.warn('API POST gagal, coba JSONP...', err2.message);
-  }
-
-  // --- Method 3: JSONP (script tag, bypass CORS total) ---
-  try {
-    const json = await jsonpRequest(action, data);
-    if (cacheKey && json.success) {
-      setCache(cacheKey, json, cacheTTL || 5 * 60 * 1000);
-    }
-    return json;
-  } catch (err3) {
-    console.error('API Error (semua metode gagal):', err3);
+  } catch (errPost) {
+    console.error('Semua metode API gagal:', errPost);
+    if (!silent) hideLoading();
     return {
       success: false,
-      message: 'Gagal terhubung ke server. Pastikan: (1) Web App sudah di-deploy sebagai "Anyone", (2) API_URL di config.js benar, (3) koneksi internet aktif.'
+      message: 'Gagal terhubung ke server (CORS/jaringan). Pastikan Web App di-deploy sebagai "Anyone" dan API_URL benar.'
     };
   }
 }
 
-function parseResponse(text) {
-  if (!text || !text.trim()) {
-    throw new Error('Response kosong');
+function buildParams(action, data) {
+  const params = new URLSearchParams();
+  params.set('action', action);
+  params.set('payload', JSON.stringify(data || {}));
+  for (const [k, v] of Object.entries(data || {})) {
+    if (v === null || v === undefined) continue;
+    params.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   }
-  // Kadang Apps Script membungkus dengan callback atau HTML
-  const trimmed = text.trim();
-  // Coba parse langsung
-  try {
-    return JSON.parse(trimmed);
-  } catch (_) {}
-  // Coba ekstrak JSON dari teks
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  if (match) {
-    return JSON.parse(match[0]);
-  }
-  throw new Error('Response bukan JSON valid: ' + trimmed.substring(0, 100));
+  return params;
 }
 
+function parseResponse(text) {
+  if (!text || !String(text).trim()) throw new Error('Response kosong');
+  const trimmed = String(text).trim();
+  try { return JSON.parse(trimmed); } catch (_) {}
+  const match = trimmed.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error('Response bukan JSON: ' + trimmed.substring(0, 80));
+}
+
+/**
+ * JSONP via <script> — metode paling andal untuk Google Apps Script
+ * Backend harus membungkus response: callbackName({...})
+ */
 function jsonpRequest(action, data) {
   return new Promise((resolve, reject) => {
-    const cbName = '_gas_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const cbName = '_sr_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    const timeoutMs = 25000;
+
+    let script = null;
+
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error('JSONP timeout'));
-    }, 20000);
+      reject(new Error('Timeout menunggu respons server (25s)'));
+    }, timeoutMs);
 
     function cleanup() {
       clearTimeout(timeout);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
+      try { delete window[cbName]; } catch (_) { window[cbName] = undefined; }
+      if (script && script.parentNode) script.parentNode.removeChild(script);
     }
 
-    window[cbName] = (result) => {
+    window[cbName] = function (result) {
       cleanup();
       resolve(result);
     };
 
-    const params = new URLSearchParams();
-    params.set('action', action);
+    const params = buildParams(action, data);
     params.set('callback', cbName);
-    params.set('payload', JSON.stringify(data));
-    for (const [k, v] of Object.entries(data)) {
-      if (v === null || v === undefined) continue;
-      params.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
-    }
 
-    const script = document.createElement('script');
-    script.src = `${API_URL}?${params.toString()}`;
-    script.onerror = () => {
+    script = document.createElement('script');
+    script.async = true;
+    script.src = API_URL + '?' + params.toString();
+
+    script.onerror = function () {
       cleanup();
-      reject(new Error('JSONP script load failed'));
+      reject(new Error('Gagal memuat script JSONP. Cek API_URL dan deployment "Anyone".'));
     };
+
     document.head.appendChild(script);
   });
 }
