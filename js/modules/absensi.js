@@ -254,34 +254,26 @@ async function submitAll() {
     return;
   }
 
-  showLoading(`Menyimpan ${entries.length} absensi...`);
-  let ok = 0, fail = 0;
-  for (const e of entries) {
-    const res = await api('submitAbsensi', {
-      nisn: e.nisn,
-      nama: e.nama,
-      sesi: currentSesi,
-      status: e.status,
-      keterangan: e.keterangan,
-      kode: e.kode,
-      petugasNIP: userRef.id
-    }, { silent: true });
-    if (res.success) ok++;
-    else {
-      fail++;
-      if (fail <= 3) toast(`${e.nama}: ${res.message}`, 'error');
-    }
-  }
-  hideLoading();
-
-  if (ok) toast(`${ok} absensi tersimpan` + (fail ? `, ${fail} gagal` : ''), ok && !fail ? 'success' : 'error');
-
-  // Reset status yang berhasil (sederhana: clear semua yang di-submit)
-  entries.forEach(e => {
-    statusMap.delete(e.nisn);
-    statusMap.delete(e.nisn + '_nama');
+  // Satu request batch (jauh lebih cepat dari N kali panggilan)
+  const res = await api('submitAbsensiBatch', {
+    items: entries,
+    sesi: currentSesi,
+    petugasNIP: userRef.id
   });
-  renderList();
+
+  if (res.success) {
+    toast(res.message || 'Absensi tersimpan', 'success');
+    if (res.errors && res.errors.length) {
+      res.errors.forEach(e => toast(e, 'error'));
+    }
+    entries.forEach(e => {
+      statusMap.delete(e.nisn);
+      statusMap.delete(e.nisn + '_nama');
+    });
+    renderList();
+  } else {
+    toast(res.message || 'Gagal menyimpan', 'error');
+  }
 }
 
 async function openAbsenQR() {
