@@ -54,8 +54,8 @@ async function loadBarang(q = '') {
             <div class="name">${escapeHtml(b.Nama)}</div>
             <div class="meta">${b.Jenis} · Stok: ${b.Jumlah}</div>
           </div>
-          <span class="badge badge-${b.BolehDipinjam === 'TRUE' || b.BolehDipinjam === true ? 'success' : 'info'}">
-            ${b.BolehDipinjam === 'TRUE' || b.BolehDipinjam === true ? 'Boleh Pinjam' : 'Ambil/Distribusi'}
+          <span class="badge badge-${b.HanyaPinjam === 'TRUE' || b.HanyaPinjam === true ? 'success' : 'info'}">
+            ${b.HanyaPinjam === 'TRUE' || b.HanyaPinjam === true ? 'Hanya Pinjam' : 'Ambil/Distribusi'}
           </span>
         </div>`;
     });
@@ -66,7 +66,7 @@ async function loadBarang(q = '') {
 async function renderPeminjaman(container) {
   container.innerHTML = `
     <div class="card">
-      <div class="card-header"><div class="card-title">Pilih Barang (yang boleh dipinjam)</div></div>
+      <div class="card-header"><div class="card-title">Pilih Barang (Hanya Pinjam)</div></div>
       <div id="list-brg-pinjam"><div class="empty">Memuat...</div></div>
     </div>
     <div class="card">
@@ -82,7 +82,7 @@ async function renderPeminjaman(container) {
     </div>
   `;
 
-  const res = await api('getBarang', { bolehDipinjam: 'TRUE' });
+  const res = await api('getBarang', { hanyaPinjam: 'TRUE' });
   const flat = res.flat || [];
   const el = document.getElementById('list-brg-pinjam');
   const grouped = {};
@@ -103,7 +103,7 @@ async function renderPeminjaman(container) {
         </label>`;
     });
   }
-  el.innerHTML = html || '<div class="empty">Tidak ada barang yang boleh dipinjam</div>';
+  el.innerHTML = html || '<div class="empty">Tidak ada barang bertanda Hanya Pinjam</div>';
 
   el.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', updateSelectedBrg);
@@ -225,7 +225,8 @@ async function renderPengambilan(container) {
       <button class="btn btn-accent btn-block" id="btn-ambil" style="margin-top:12px">Ambil Barang</button>
     </div>
   `;
-  const res = await api('getBarang', {});
+  // Hanya tampilkan barang yang BUKAN Hanya Pinjam (boleh diambil)
+  const res = await api('getBarang', { hanyaPinjam: 'FALSE' });
   const flat = res.flat || [];
   const grouped = {};
   flat.forEach(b => { const k = b.Kategori || 'Lainnya'; if (!grouped[k]) grouped[k] = []; grouped[k].push(b); });
@@ -240,7 +241,7 @@ async function renderPengambilan(container) {
       </label>`;
     });
   }
-  document.getElementById('list-ambil').innerHTML = html;
+  document.getElementById('list-ambil').innerHTML = html || '<div class="empty">Tidak ada barang untuk diambil</div>';
 
   document.getElementById('btn-ambil').addEventListener('click', async () => {
     const list = [];
@@ -298,7 +299,8 @@ async function renderDistribusi(container) {
     }, 300);
   });
 
-  const res = await api('getBarang', {});
+  // Hanya tampilkan barang yang BUKAN Hanya Pinjam (boleh didistribusi)
+  const res = await api('getBarang', { hanyaPinjam: 'FALSE' });
   const flat = res.flat || [];
   let html = '';
   const grouped = {};
