@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a56db" />
+  <meta name="description" content="Portal Sekolah Rakyat Kota Pasuruan - Cerdas Bersama, Tumbuh Setara" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+  <title>Sekolah Rakyat Kota Pasuruan</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ========== LANDING ========== -->
+  <div id="landing" class="landing">
+    <div class="logo">
+      <img src="assets/logo.svg" alt="Logo" width="64" height="64" />
+    </div>
+    <h1>Selamat datang di portal<br>Sekolah Rakyat Kota Pasuruan</h1>
+    <p class="tagline">Cerdas Bersama, Tumbuh Setara</p>
+    <button class="btn btn-primary" id="btn-to-login" style="min-width:180px">Login</button>
+  </div>
+
+  <!-- ========== LOGIN ========== -->
+  <div id="login-page" class="landing hidden" style="background:var(--gray-100)">
+    <div class="login-card">
+      <div class="logo-sm">
+        <img src="assets/logo.svg" alt="Logo" width="40" height="40" />
+      </div>
+      <h2>Login</h2>
+
+      <form id="form-login-admin">
+        <div class="form-group">
+          <label for="input-nip">NIP</label>
+          <input type="text" id="input-nip" placeholder="Masukkan NIP" autocomplete="username" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label for="input-password">Password</label>
+          <input type="password" id="input-password" placeholder="Masukkan Password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-accent btn-block">Masuk</button>
+      </form>
+
+      <div class="divider">atau</div>
+
+      <button type="button" class="btn btn-outline btn-block" id="btn-scan-qr" style="color:var(--primary);border-color:var(--primary)">
+        📷 Scan QR Code
+      </button>
+
+      <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--gray-500)">
+        QR: NIP (Admin) · NISN (Siswa) · No.HP (Orang Tua)
+      </p>
+    </div>
+  </div>
+
+  <!-- ========== QR SCANNER MODAL ========== -->
+  <div id="qr-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Scan QR Code</h3>
+        <button class="modal-close" id="btn-close-qr">✕</button>
+      </div>
+      <div id="qr-reader"></div>
+      <p style="text-align:center;margin-top:12px;font-size:0.85rem;color:var(--gray-500)">
+        Arahkan kamera ke QR Code
+      </p>
+      <button class="btn btn-accent btn-block" id="btn-switch-camera" style="margin-top:12px">
+        🔄 Ganti Kamera
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== APP SHELL (setelah login) ========== -->
+  <div id="app" class="app-shell hidden">
+    <header class="topbar">
+      <button class="menu-btn" id="btn-menu" aria-label="Menu">☰</button>
+      <div class="title" id="topbar-title">Dasbor</div>
+      <div class="avatar" id="topbar-avatar">A</div>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="name" id="sidebar-name">Nama</div>
+        <div class="role" id="sidebar-role">Role</div>
+      </div>
+      <ul class="nav-list" id="nav-list">
+        <!-- diisi dinamis via JS -->
+      </ul>
+      <div style="padding:16px">
+        <button class="btn btn-danger btn-block btn-sm" id="btn-logout">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content" id="main-content">
+      <!-- Konten modul di-render di sini -->
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts: dynamic import agar hanya load yang dibutuhkan -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
