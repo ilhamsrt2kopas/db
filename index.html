@@ -474,9 +474,23 @@
             }
         }
 
+        // Fungsi pengecekan jika ada barang bertipe "Hanya Pinjam" di keranjang
+        function isHanyaPinjamInCart() {
+            for (let id in state.cart) {
+                if (state.cart[id] > 0) {
+                    let item = state.barang.find(b => b.id === id);
+                    if (item && item.hanyaPinjam) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         function renderBarangContent() {
             const main = document.getElementById('mainContent');
             
+            let hasPinjamInCart = isHanyaPinjamInCart();
             let filteredBarang = getFilteredBarang();
             let activeLoans = state.transaksi.filter(t => {
                 let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
@@ -484,7 +498,7 @@
                 return isMyLoan && isUnreturned;
             });
 
-            const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Mobil', 'Motor', 'Alat Olahraga'];
+            const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -496,7 +510,7 @@
                                 <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">Atur jumlah barang untuk pengambilan atau peminjaman</p>
                             </div>
                             <div class="flex gap-2 w-full sm:w-auto">
-                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="flex-1 sm:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-green-600/20 text-center">
+                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="flex-1 sm:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-green-600/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600 text-center" ${hasPinjamInCart ? 'disabled' : ''}>
                                     <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
                                 </button>
                                 <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="flex-1 sm:flex-none px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 text-center">
@@ -654,6 +668,12 @@
             if (newVal > maxStok) newVal = maxStok;
             state.cart[id] = newVal;
             
+            // Perbarui tombol Ambil jika ada barang Hanya Pinjam
+            const btnAmbil = document.getElementById('btnAmbil');
+            if (btnAmbil) {
+                btnAmbil.disabled = isHanyaPinjamInCart();
+            }
+
             const tbody = document.getElementById('barangTableBody');
             if (tbody) {
                 tbody.innerHTML = renderTableRows(getFilteredBarang());
@@ -665,6 +685,12 @@
             if (isNaN(num) || num < 0) num = 0;
             if (num > maxStok) num = maxStok;
             state.cart[id] = num;
+
+            // Perbarui status tombol Ambil
+            const btnAmbil = document.getElementById('btnAmbil');
+            if (btnAmbil) {
+                btnAmbil.disabled = isHanyaPinjamInCart();
+            }
         }
 
         let pendingJenis = '';
