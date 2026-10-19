@@ -5,16 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrasi Sekolah Rakyat</title>
     <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/manifest+json,{
-      'name': 'Administrasi Sekolah Rakyat',
-      'short_name': 'AdminSR',
-      'start_url': '.',
-      'display': 'standalone',
-      'background_color': '#f8fafc',
-      'theme_color': '#2563eb',
-      'icons': [{'src': 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', 'sizes': '512x512', 'type': 'image/png'}]
-    }">
-    <meta name="theme-color" content="#2563eb">
+<!-- PWA Manifest & Meta -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     <!-- Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,6 +21,14 @@
     <!-- KONFIGURASI URL GAS -->
     <script>
         const GAS_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
+        // Registrasi Service Worker untuk PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker terdaftar!', reg))
+            .catch(err => console.log('Service Worker gagal:', err));
+    });
+}
     </script>
 
     <!-- Global Loading Overlay -->
