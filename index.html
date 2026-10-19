@@ -439,7 +439,7 @@
             }
 
             // Filter & Sort Barang
-            let filteredBarang = state.barang.filter(b => {
+           let filteredBarang = state.barang.filter(b => {
                 let matchQuery = b.nama.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
                                  b.id.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
                                  b.kategori.toLowerCase().includes(state.searchQuery.toLowerCase());
@@ -447,14 +447,14 @@
                 return matchQuery && matchCat;
             });
 
-            filteredBarang.sort((a, b => {
+            filteredBarang.sort((a, b) => {
                 let valA = a[state.sortColumn];
                 let valB = b[state.sortColumn];
                 if (typeof valA === 'string') {
                     return state.sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 }
                 return state.sortAsc ? valA - valB : valB - valA;
-            }));
+            });
 
             // Filter Transaksi Peminjaman untuk Pengembalian (Hanya yang belum kembali / sebagian)
             let activeLoans = state.transaksi.filter(t => {
