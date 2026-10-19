@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     
     <!-- Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -116,7 +116,7 @@
         }
 
         async function fetchAppData() {
-            if (!GAS_URL || GAS_URL.includes("MASUKKAN_URL")) {
+            if (!GAS_URL) {
                 showToast("URL Web App GAS belum dikonfigurasi!", true);
                 return;
             }
@@ -556,7 +556,7 @@
                                         <th class="p-4 text-center">Jumlah Pilihan</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 text-sm">
+                                <tbody id="barangTableBody" class="divide-y divide-slate-100 text-sm">
                                     ${filteredBarang.length === 0 ? '<tr><td colspan="5" class="p-8 text-center text-slate-400">Tidak ada barang yang ditemukan.</td></tr>' : filteredBarang.map(b => {
                                         let qty = state.cart[b.id] || 0;
                                         return `
@@ -626,7 +626,48 @@
 
         function handleSearchInput(val) {
             state.searchQuery = val;
-            renderBarangContent();
+            const tbody = document.getElementById('barangTableBody');
+            if (!tbody) return;
+
+            let filteredBarang = state.barang.filter(b => {
+                let matchQuery = b.nama.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
+                                 b.id.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
+                                 b.kategori.toLowerCase().includes(state.searchQuery.toLowerCase());
+                let matchCat = state.selectedCategory === 'Semua' || b.kategori === state.selectedCategory;
+                return matchQuery && matchCat;
+            });
+
+            filteredBarang.sort((a, b) => {
+                let valA = a[state.sortColumn];
+                let valB = b[state.sortColumn];
+                if (typeof valA === 'string') {
+                    return state.sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return state.sortAsc ? valA - valB : valB - valA;
+            });
+
+            tbody.innerHTML = filteredBarang.length === 0 ? 
+                '<tr><td colspan="5" class="p-8 text-center text-slate-400">Tidak ada barang yang ditemukan.</td></tr>' : 
+                filteredBarang.map(b => {
+                    let qty = state.cart[b.id] || 0;
+                    return `
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="p-4 font-medium text-slate-800">${b.nama}</td>
+                            <td class="p-4"><span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-600">${b.kategori}</span></td>
+                            <td class="p-4">
+                                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg ${b.hanyaPinjam ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}">${b.hanyaPinjam ? 'Hanya Pinjam' : 'Bisa Ambil / Pinjam'}</span>
+                            </td>
+                            <td class="p-4 font-semibold text-slate-700">${b.stok}</td>
+                            <td class="p-4">
+                                <div class="flex items-center justify-center gap-2">
+                                    <button onclick="updateCart('${b.id}', -1, ${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-minus text-xs"></i></button>
+                                    <span class="w-8 text-center font-semibold text-slate-800">${qty}</span>
+                                    <button onclick="updateCart('${b.id}', 1, ${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
         }
 
         function filterCategory(cat) {
