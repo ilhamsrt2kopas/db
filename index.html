@@ -576,8 +576,9 @@
             `;
         }
 
-        function handleSearchInput(val) {
+       function handleSearchInput(val) {
             state.searchQuery = val;
+            renderBarangContent(); // <--- Tambahkan baris ini agar tabel langsung ter-refresh saat diketik
         }
 
         function filterCategory(cat) {
