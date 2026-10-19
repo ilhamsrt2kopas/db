@@ -57,7 +57,7 @@
             <div class="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto mb-4 border border-slate-100" id="modalItemList"></div>
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Tidak</button>
-                <button onclick="executeTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Ya, Lanjutkan</button>
+                <button onclick="uteTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Ya, Lanjutkan</button>
             </div>
         </div>
     </div>
@@ -75,7 +75,7 @@
             </div>
             <div class="flex gap-3">
                 <button onclick="closeReturnModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Batal</button>
-                <button onclick="executeReturn()" class="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition shadow-lg shadow-green-600/20">Proses Pengembalian</button>
+                <button onclick="uteReturn()" class="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition shadow-lg shadow-green-600/20">Proses Pengembalian</button>
             </div>
         </div>
     </div>
@@ -638,7 +638,7 @@
             document.getElementById('confirmModal').classList.add('hidden');
         }
 
-        async function executeTransaction() {
+        async function uteTransaction() {
             closeConfirmModal();
             let itemsPayload = [];
             for (let id in state.cart) {
@@ -692,7 +692,7 @@
             document.getElementById('returnModal').classList.add('hidden');
         }
 
-        async function executeReturn() {
+        async function uteReturn() {
             let qty = Number(document.getElementById('returnQtyInput').value);
             if (qty <= 0 || qty > maxReturnQty) {
                 showToast("Jumlah pengembalian tidak valid!", true);
