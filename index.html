@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrasi Sekolah Rakyat</title>
-    <!-- PWA Manifest & Meta -->
+    <!-- PWA Manifest -->
     <link rel="manifest" href="data:application/manifest+json,{
       'name': 'Administrasi Sekolah Rakyat',
       'short_name': 'AdminSR',
@@ -22,26 +22,30 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI URL GAS (Ganti dengan URL Deployment Web App Anda) -->
+    <!-- KONFIGURASI URL GAS -->
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
+        const GAS_URL = "MASUKKAN_URL_WEB_APP_ANDA_DISINI"; 
     </script>
 
-    <!-- App Container -->
-    <div id="app" class="flex-1 flex flex-col">
-        <!-- Render dinamis via JS -->
+    <!-- Global Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-3">
+            <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-sm font-semibold text-slate-700" id="loadingText">Memuat Data...</p>
+        </div>
     </div>
 
+    <!-- App Root Container -->
+    <div id="app" class="flex-1 flex flex-col"></div>
+
     <!-- Modal Konfirmasi Ambil / Pinjam -->
-    <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+    <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
                 <i class="fa-solid fa-circle-question text-blue-600"></i> Konfirmasi Transaksi
             </h3>
-            <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan pengambilan barang:</p>
-            <div class="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto mb-4 border border-slate-100" id="modalItemList">
-                <!-- Daftar barang terpilih -->
-            </div>
+            <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan transaksi:</p>
+            <div class="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto mb-4 border border-slate-100" id="modalItemList"></div>
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Tidak</button>
                 <button onclick="executeTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">Ya, Lanjutkan</button>
@@ -55,41 +59,47 @@
     </div>
 
     <script>
-        // State Aplikasi
         let state = {
             user: JSON.parse(localStorage.getItem('sr_user')) || null,
-            currentView: localStorage.getItem('sr_user') ? 'dashboard' : 'login',
             barang: [],
             transaksi: [],
-            cart: {}, // { idBarang: jumlah }
-            activeTab: 'dashboard', // dashboard, barang
-            loading: false
+            cart: {}, 
+            activeTab: 'dashboard'
         };
 
-        // Inisialisasi Data dari GAS
+        function showLoading(text = "Memuat Data...") {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
         async function fetchAppData() {
             if (!GAS_URL || GAS_URL.includes("MASUKKAN_URL")) {
                 showToast("URL Web App GAS belum dikonfigurasi!", true);
                 return;
             }
-            state.loading = true;
-            render();
+            showLoading("Mengambil data terbaru...");
             try {
                 let res = await fetch(GAS_URL + "?action=getData");
                 let data = await res.json();
                 if (data.status === "success") {
-                    state.barang = data.barang;
-                    state.transaksi = data.transaksi;
+                    state.barang = data.barang || [];
+                    state.transaksi = data.transaksi || [];
+                    render();
+                } else {
+                    showToast("Gagal memuat data", true);
                 }
             } catch (err) {
                 console.error(err);
-                showToast("Gagal memuat data dari server.", true);
+                showToast("Gagal terhubung ke Apps Script.", true);
+            } finally {
+                hideLoading();
             }
-            state.loading = false;
-            render();
         }
 
-        // Render Utama
         function render() {
             const app = document.getElementById('app');
             if (!state.user) {
@@ -104,7 +114,6 @@
             }
         }
 
-        // 1. Tampilan Login
         function renderLoginView() {
             return `
                 <div class="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
@@ -145,7 +154,7 @@
             const nip = document.getElementById('nip').value;
             const password = document.getElementById('password').value;
             
-            showToast("Memproses login...", false);
+            showLoading("Memverifikasi Login...");
             try {
                 let res = await fetch(`${GAS_URL}?action=login&nip=${nip}&password=${password}`);
                 let data = await res.json();
@@ -153,12 +162,14 @@
                     state.user = data.user;
                     localStorage.setItem('sr_user', JSON.stringify(data.user));
                     showToast("Login berhasil!");
-                    fetchAppData();
+                    await fetchAppData();
                 } else {
                     showToast(data.message, true);
                 }
             } catch (err) {
                 showToast("Terjadi kesalahan koneksi.", true);
+            } finally {
+                hideLoading();
             }
         }
 
@@ -169,11 +180,9 @@
             render();
         }
 
-        // 2. Layout Utama Setelah Login (Sidebar + Navbar)
         function renderMainLayout() {
             return `
                 <div class="flex h-screen overflow-hidden">
-                    <!-- Sidebar untuk Desktop / Mobile Drawer -->
                     <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800">
                         <div class="p-6 border-b border-slate-800 flex items-center gap-3">
                             <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
@@ -203,20 +212,18 @@
                         </div>
                     </aside>
 
-                    <!-- Main Content Area -->
                     <div class="flex-1 flex flex-col overflow-y-auto">
-                        <!-- Top Navbar -->
                         <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
                             <div class="flex items-center gap-4">
                                 <h1 class="text-lg font-bold text-slate-800 capitalize" id="pageTitle">${state.activeTab}</h1>
                             </div>
                             <div class="flex items-center gap-3">
                                 <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data">
-                                    <i class="fa-solid fa-rotate-right ${state.loading ? 'animate-spin' : ''}"></i>
+                                    <i class="fa-solid fa-rotate-right"></i>
                                 </button>
                                 <div class="md:hidden flex items-center gap-2">
                                     <button onclick="switchTab(state.activeTab === 'dashboard' ? 'barang' : 'dashboard')" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">
-                                        Menu Lain
+                                        Menu
                                     </button>
                                     <button onclick="handleLogout()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg">
                                         <i class="fa-solid fa-right-from-bracket"></i>
@@ -225,10 +232,7 @@
                             </div>
                         </header>
 
-                        <!-- Dynamic Content View -->
-                        <main id="mainContent" class="flex-1 p-6 max-w-7xl w-full mx-auto">
-                            <!-- Render konten spesifik tab -->
-                        </main>
+                        <main id="mainContent" class="flex-1 p-6 max-w-7xl w-full mx-auto"></main>
                     </div>
                 </div>
             `;
@@ -239,26 +243,31 @@
             render();
         }
 
-        // Konten Dasbor
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
             
             main.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Kontainer 1: Peminjaman Barang Hari Ini -->
+                    <!-- Kontainer 1: Peminjaman Hari Ini -->
                     <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
-                        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-clock text-blue-600"></i> Peminjaman & Pengambilan Hari Ini
-                        </h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-blue-600"></i> Peminjaman & Pengambilan Hari Ini
+                            </h3>
+                            <span class="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayTrx.length} Aktivitas</span>
+                        </div>
                         <div class="flex-1 overflow-y-auto max-h-80">
-                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-8">Belum ada aktivitas hari ini.</p>' : `
+                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-8">Belum ada aktivitas transaksi hari ini.</p>' : `
                                 <div class="space-y-3">
                                     ${todayTrx.map(t => `
                                         <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                                             <div>
-                                                <p class="text-sm font-semibold text-slate-800">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
-                                                <p class="text-xs text-slate-400">${t.namaPengguna} • <span class="font-medium text-blue-600">${t.jenis}</span></p>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-mono text-xs font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">#${t.idTransaksi}</span>
+                                                    <p class="text-sm font-semibold text-slate-800">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                                                </div>
+                                                <p class="text-xs text-slate-400 mt-1">${t.namaPengguna} • <span class="font-medium text-blue-600">${t.jenis}</span></p>
                                             </div>
                                             <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg ${t.status === 'Selesai' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">${t.status}</span>
                                         </div>
@@ -268,7 +277,7 @@
                         </div>
                     </div>
 
-                    <!-- Kontainer 2: Stok Barang Tersedia & Diagram Statistik -->
+                    <!-- Kontainer 2: Diagram Stok -->
                     <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
                         <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-chart-bar text-blue-600"></i> Statistik Stok Barang
@@ -312,15 +321,12 @@
             });
         }
 
-        // Konten Menu Barang
         function renderBarangContent() {
             const main = document.getElementById('mainContent');
             
-            // Cek apakah di keranjang ada barang bertipe "Pinjam"
             let hasPinjamInCart = false;
             for (let id in state.cart) {
-                let qty = state.cart[id];
-                if (qty > 0) {
+                if (state.cart[id] > 0) {
                     let item = state.barang.find(b => b.id === id);
                     if (item && item.tipe === 'Pinjam') {
                         hasPinjamInCart = true;
@@ -331,10 +337,10 @@
 
             main.innerHTML = `
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                    <div class="p-6 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
                         <div>
                             <h3 class="text-base font-bold text-slate-900">Daftar Inventaris Barang</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Pilih jumlah barang yang ingin diambil atau dipinjam</p>
+                            <p class="text-xs text-slate-500 mt-0.5">Atur jumlah barang untuk pengambilan atau peminjaman</p>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="confirmAction('Ambil')" id="btnAmbil" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed" ${hasPinjamInCart ? 'disabled' : ''}>
@@ -370,7 +376,7 @@
                                             <td class="p-4">
                                                 <div class="flex items-center justify-center gap-2">
                                                     <button onclick="updateCart('${b.id}', -1,${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-minus text-xs"></i></button>
-                                                    <span class="w-8 text-center font-semibold text-slate-800" id="qty-${b.id}">${qty}</span>
+                                                    <span class="w-8 text-center font-semibold text-slate-800">${qty}</span>
                                                     <button onclick="updateCart('${b.id}', 1,${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-plus text-xs"></i></button>
                                                 </div>
                                             </td>
@@ -445,7 +451,7 @@
                 }
             };
 
-            showToast("Memproses transaksi...", false);
+            showLoading("Memproses Transaksi...");
             try {
                 let res = await fetch(GAS_URL, {
                     method: "POST",
@@ -453,18 +459,19 @@
                 });
                 let result = await res.json();
                 if (result.status === "success") {
-                    showToast("Transaksi berhasil dicatat!");
+                    showToast(result.message);
                     state.cart = {};
-                    fetchAppData();
+                    await fetchAppData();
                 } else {
                     showToast(result.message, true);
                 }
             } catch (err) {
                 showToast("Gagal terhubung ke server.", true);
+            } finally {
+                hideLoading();
             }
         }
 
-        // Toast Helper
         function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
             const msgEl = document.getElementById('toastMsg');
@@ -475,7 +482,6 @@
             }, 3500);
         }
 
-        // Initial Load
         window.onload = () => {
             if (state.user) {
                 fetchAppData();
