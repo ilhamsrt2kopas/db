@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Administrasi Sekolah Rakyat</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -20,9 +20,9 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#f97316', // Orange Gedung Sekolah Rakyat
+                        primary: '#f97316',
                         primaryDark: '#ea580c',
-                        secondary: '#16a34a'  // Hijau Selaras
+                        secondary: '#16a34a'
                     }
                 }
             }
@@ -31,23 +31,22 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI URL GAS -->
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
+        const GAS_URL = "MASUKKAN_URL_WEB_APP_ANDA_DISINI"; 
     </script>
 
     <!-- Global Loading Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-3">
             <div class="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-sm font-semibold text-slate-700" id="loadingText">Memuat Data...</p>
+            <p class="text-sm font-semibold text-slate-700 text-center" id="loadingText">Memuat Data...</p>
         </div>
     </div>
 
     <!-- App Root Container -->
     <div id="app" class="flex-1 flex flex-col"></div>
 
-    <!-- Modal Konfirmasi Ambil / Pinjam -->
+    <!-- Modal Konfirmasi -->
     <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
@@ -57,12 +56,12 @@
             <div class="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto mb-4 border border-slate-100" id="modalItemList"></div>
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Tidak</button>
-                <button onclick="uteTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Ya, Lanjutkan</button>
+                <button onclick="executeTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Ya, Lanjutkan</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Pengembalian Barang -->
+    <!-- Modal Pengembalian -->
     <div id="returnModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
@@ -75,14 +74,14 @@
             </div>
             <div class="flex gap-3">
                 <button onclick="closeReturnModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Batal</button>
-                <button onclick="uteReturn()" class="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition shadow-lg shadow-green-600/20">Proses Pengembalian</button>
+                <button onclick="executeReturn()" class="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition shadow-lg shadow-green-600/20">Proses</button>
             </div>
         </div>
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 hidden z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center gap-3">
-        <span id="toastMsg">Notifikasi</span>
+    <div id="toast" class="fixed bottom-5 right-5 left-5 md:left-auto hidden z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center justify-center md:justify-start gap-3">
+        <span id="toastMsg" class="text-center md:text-left">Notifikasi</span>
     </div>
 
     <script>
@@ -95,10 +94,10 @@
             searchQuery: '',
             selectedCategory: 'Semua',
             sortColumn: 'nama',
-            sortAsc: true
+            sortAsc: true,
+            mobileMenuOpen: false
         };
 
-        // Service Worker Registrasi PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
@@ -108,9 +107,11 @@
         function showLoading(text = "Memuat Data...") {
             document.getElementById('loadingText').innerText = text;
             document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingOverlay').classList.add('flex');
         }
 
         function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('flex');
             document.getElementById('loadingOverlay').classList.add('hidden');
         }
 
@@ -157,13 +158,13 @@
         function renderLoginView() {
             return `
                 <div class="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-amber-50">
-                    <div class="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full border border-slate-100">
+                    <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-md w-full border border-slate-100">
                         <div class="text-center mb-8">
-                            <div class="w-20 h-20 bg-orange-500 text-white rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-lg shadow-orange-500/30 mb-4">
+                            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-orange-500 text-white rounded-2xl mx-auto flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-lg shadow-orange-500/30 mb-4">
                                 <i class="fa-solid fa-school"></i>
                             </div>
-                            <h1 class="text-2xl font-bold text-slate-900">Sekolah Rakyat</h1>
-                            <p class="text-sm text-slate-500 mt-1">Sistem Administrasi Peminjaman & Pengambilan Barang</p>
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Sekolah Rakyat</h1>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-1">Sistem Administrasi Peminjaman & Pengambilan Barang</p>
                         </div>
                         <form onsubmit="handleLogin(event)" class="space-y-4">
                             <div>
@@ -220,17 +221,77 @@
             render();
         }
 
+        function toggleMobileMenu() {
+            state.mobileMenuOpen = !state.mobileMenuOpen;
+            render();
+        }
+
         function renderMainLayout() {
             return `
-                <div class="flex h-screen overflow-hidden">
-                    <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800">
+                <div class="flex flex-col md:flex-row h-screen overflow-hidden">
+                    <!-- Mobile Top Bar -->
+                    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between md:hidden z-30 shrink-0">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
+                                <i class="fa-solid fa-school"></i>
+                            </div>
+                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat</h2>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="fetchAppData()" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>
+                            <button onclick="toggleMobileMenu()" class="p-2 text-slate-800 hover:bg-slate-100 rounded-lg text-lg"><i class="fa-solid fa-bars"></i></button>
+                        </div>
+                    </header>
+
+                    <!-- Mobile Drawer Overlay -->
+                    ${state.mobileMenuOpen ? `
+                        <div class="fixed inset-0 bg-black/50 z-40 md:hidden flex justify-end" onclick="toggleMobileMenu()">
+                            <div class="w-72 bg-slate-900 text-slate-300 h-full flex flex-col p-5 shadow-2xl" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold">
+                                            <i class="fa-solid fa-school"></i>
+                                        </div>
+                                        <div>
+                                            <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
+                                            <p class="text-[11px] text-orange-400">Admin Panel</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                                </div>
+                                <nav class="flex-1 space-y-1.5">
+                                    <button onclick="switchTab('dashboard'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'dashboard' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
+                                        <i class="fa-solid fa-chart-pie w-5"></i> Dasbor
+                                    </button>
+                                    <button onclick="switchTab('barang'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'barang' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
+                                        <i class="fa-solid fa-boxes-stacked w-5"></i> Barang
+                                    </button>
+                                    <button onclick="switchTab('gantipassword'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'gantipassword' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
+                                        <i class="fa-solid fa-key w-5"></i> Ganti Password
+                                    </button>
+                                </nav>
+                                <div class="pt-4 border-t border-slate-800">
+                                    <div class="mb-3 px-2">
+                                        <p class="text-xs font-semibold text-white truncate">${state.user.nama}</p>
+                                        <p class="text-[11px] text-slate-400">${state.user.jabatan}${state.user.isAdmin ? '<span class="text-orange-400 font-bold">(Admin)</span>' : ''}</p>
+                                    </div>
+                                    <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm text-red-400 hover:bg-red-500/10 transition">
+                                        <i class="fa-solid fa-right-from-bracket w-5"></i> Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Desktop Sidebar -->
+                    <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800 shrink-0">
                         <div class="p-6 border-b border-slate-800 flex items-center gap-3">
                             <div class="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold shadow-md shadow-orange-500/20">
                                 <i class="fa-solid fa-school"></i>
                             </div>
                             <div>
-                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat Terintegrasi 2 </h2>
-                                <p class="text-xs text-orange-400">Kota Pasuruan</p>
+                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
+                                <p class="text-xs text-orange-400">Admin Panel</p>
                             </div>
                         </div>
                         <nav class="flex-1 p-4 space-y-1">
@@ -255,27 +316,22 @@
                         </div>
                     </aside>
 
+                    <!-- Main Content Area -->
                     <div class="flex-1 flex flex-col overflow-y-auto">
-                        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+                        <!-- Desktop Top Navbar -->
+                        <header class="bg-white border-b border-slate-200 px-6 py-4 hidden md:flex items-center justify-between sticky top-0 z-20 shrink-0">
                             <div class="flex items-center gap-4">
-                                <h1 class="text-lg font-bold text-slate-800 capitalize" id="pageTitle">${state.activeTab}</h1>
+                                <h1 class="text-lg font-bold text-slate-800 capitalize">${state.activeTab === 'gantipassword' ? 'Ganti Password' : state.activeTab}</h1>
                             </div>
                             <div class="flex items-center gap-3">
                                 <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data">
                                     <i class="fa-solid fa-rotate-right"></i>
                                 </button>
-                                <div class="md:hidden flex items-center gap-2">
-                                    <button onclick="switchTab(state.activeTab === 'dashboard' ? 'barang' : 'dashboard')" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-xs font-medium">
-                                        Menu
-                                    </button>
-                                    <button onclick="handleLogout()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg">
-                                        <i class="fa-solid fa-right-from-bracket"></i>
-                                    </button>
-                                </div>
                             </div>
                         </header>
 
-                        <main id="mainContent" class="flex-1 p-6 max-w-7xl w-full mx-auto"></main>
+                        <!-- Dynamic Content -->
+                        <main id="mainContent" class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto"></main>
                     </div>
                 </div>
             `;
@@ -293,25 +349,25 @@
             main.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Kontainer 1: Peminjaman Hari Ini -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-clock text-orange-500"></i> Peminjaman & Pengambilan Hari Ini
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-orange-500"></i> Peminjaman Hari Ini
                             </h3>
                             <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayTrx.length} Aktivitas</span>
                         </div>
-                        <div class="flex-1 overflow-y-auto max-h-80">
+                        <div class="flex-1 overflow-y-auto max-h-80 pr-1">
                             ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-8">Belum ada aktivitas transaksi hari ini.</p>' : `
                                 <div class="space-y-3">
                                     ${todayTrx.map(t => `
-                                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                                            <div>
-                                                <div class="flex items-center gap-2">
+                                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-3">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-2 flex-wrap">
                                                     <span class="font-mono text-xs font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">#${t.idTransaksi}</span>
-                                                    <p class="text-sm font-semibold text-slate-800">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                                                    <p class="text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
                                                 </div>
-                                                <p class="text-xs text-slate-400 mt-1">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
-                                                <p class="text-[11px] text-slate-500 mt-0.5">Status: <span class="font-medium">${t.status}</span></p>
+                                                <p class="text-xs text-slate-400 mt-1 truncate">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
+                                                <p class="text-[11px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
                                             </div>
                                         </div>
                                     `).join('')}
@@ -321,11 +377,11 @@
                     </div>
 
                     <!-- Kontainer 2: Diagram Stok -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
-                        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                        <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Barang
                         </h3>
-                        <div class="relative flex-1 flex items-center justify-center min-h-[250px]">
+                        <div class="relative flex-1 flex items-center justify-center min-h-[250px] sm:min-h-[280px]">
                             <canvas id="stockChart"></canvas>
                         </div>
                     </div>
@@ -358,18 +414,17 @@
                     plugins: { legend: { display: false } },
                     scales: {
                         y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
-                        x: { grid: { display: false } }
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
                     }
                 }
             });
         }
 
-        // Modul Ganti Password
         function renderPasswordContent() {
             const main = document.getElementById('mainContent');
             main.innerHTML = `
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-w-lg mx-auto">
-                    <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 max-w-lg mx-auto">
+                    <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-key text-orange-500"></i> Ubah Password Akun
                     </h3>
                     <p class="text-xs text-slate-500 mb-6">Pastikan password baru Anda aman dan mudah diingat.</p>
@@ -419,14 +474,9 @@
             }
         }
 
-        // Modul Barang & Pengembalian
-        let activeReturnRow = null;
-        let maxReturnQty = 0;
-
         function renderBarangContent() {
             const main = document.getElementById('mainContent');
             
-            // Cek apakah di keranjang ada barang bertipe "Hanya Pinjam" (hanyaPinjam === true)
             let hasPinjamInCart = false;
             for (let id in state.cart) {
                 if (state.cart[id] > 0) {
@@ -438,8 +488,7 @@
                 }
             }
 
-            // Filter & Sort Barang
-           let filteredBarang = state.barang.filter(b => {
+            let filteredBarang = state.barang.filter(b => {
                 let matchQuery = b.nama.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
                                  b.id.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
                                  b.kategori.toLowerCase().includes(state.searchQuery.toLowerCase());
@@ -456,7 +505,6 @@
                 return state.sortAsc ? valA - valB : valB - valA;
             });
 
-            // Filter Transaksi Peminjaman untuk Pengembalian (Hanya yang belum kembali / sebagian)
             let activeLoans = state.transaksi.filter(t => {
                 let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
                 let isUnreturned = t.jenis === 'Pinjam' && !t.status.includes('Dikembalikan');
@@ -469,28 +517,28 @@
                 <div class="space-y-6">
                     <!-- Tab Inventaris Barang -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div class="p-6 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div>
                                 <h3 class="text-base font-bold text-slate-900">Daftar Inventaris Barang</h3>
                                 <p class="text-xs text-slate-500 mt-0.5">Atur jumlah barang untuk pengambilan atau peminjaman</p>
                             </div>
-                            <div class="flex gap-2 flex-wrap items-center">
-                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed" ${hasPinjamInCart ? 'disabled' : ''}>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="flex-1 sm:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-center" ${hasPinjamInCart ? 'disabled' : ''}>
                                     <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
                                 </button>
-                                <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-orange-500/20">
+                                <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="flex-1 sm:flex-none px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-orange-500/20 text-center">
                                     <i class="fa-solid fa-clock-rotate-left mr-1"></i> Pinjam
                                 </button>
                             </div>
                         </div>
 
                         <!-- Filter & Search Bar -->
-                        <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
+                        <div class="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
                             <div class="relative w-full md:w-80">
                                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400"><i class="fa-solid fa-search"></i></span>
                                 <input type="text" id="searchInput" oninput="handleSearchInput(this.value)" value="${state.searchQuery}" class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Cari nama, ID, kategori...">
                             </div>
-                            <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+                            <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 no-scrollbar">
                                 ${categories.map(cat => `
                                     <button onclick="filterCategory('${cat}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${state.selectedCategory === cat ? 'bg-orange-500 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">${cat}</button>
                                 `).join('')}
@@ -498,13 +546,13 @@
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="w-full text-left border-collapse min-w-[600px]">
                                <thead>
                                     <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                         <th class="p-4 cursor-pointer hover:text-orange-600" onclick="sortBarang('nama')">Nama Barang <i class="fa-solid fa-sort ml-1"></i></th>
                                         <th class="p-4 cursor-pointer hover:text-orange-600" onclick="sortBarang('kategori')">Kategori <i class="fa-solid fa-sort ml-1"></i></th>
                                         <th class="p-4 cursor-pointer hover:text-orange-600" onclick="sortBarang('hanyaPinjam')">Aturan <i class="fa-solid fa-sort ml-1"></i></th>
-                                        <th class="p-4 cursor-pointer hover:text-orange-600" onclick="sortBarang('stok')">Stok Tersedia <i class="fa-solid fa-sort ml-1"></i></th>
+                                        <th class="p-4 cursor-pointer hover:text-orange-600" onclick="sortBarang('stok')">Stok <i class="fa-solid fa-sort ml-1"></i></th>
                                         <th class="p-4 text-center">Jumlah Pilihan</th>
                                     </tr>
                                 </thead>
@@ -535,19 +583,19 @@
                     </div>
 
                     <!-- Modul Pengembalian Barang -->
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
                         <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-arrow-rotate-left text-green-600"></i> Pengembalian Barang Pinjaman
                         </h3>
                         <div class="overflow-x-auto">
                             ${activeLoans.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Tidak ada barang pinjaman aktif yang perlu dikembalikan.</p>' : `
-                                <table class="w-full text-left border-collapse">
+                                <table class="w-full text-left border-collapse min-w-[600px]">
                                     <thead>
                                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                            <th class="p-3">ID Transaksi</th>
+                                            <th class="p-3">ID Trx</th>
                                             <th class="p-3">Peminjam</th>
                                             <th class="p-3">Nama Barang</th>
-                                            <th class="p-3">Jumlah Pinjam</th>
+                                            <th class="p-3">Jumlah</th>
                                             <th class="p-3">Status</th>
                                             <th class="p-3 text-center">Aksi</th>
                                         </tr>
@@ -576,9 +624,9 @@
             `;
         }
 
-       function handleSearchInput(val) {
+        function handleSearchInput(val) {
             state.searchQuery = val;
-            renderBarangContent(); // <--- Tambahkan baris ini agar tabel langsung ter-refresh saat diketik
+            renderBarangContent();
         }
 
         function filterCategory(cat) {
@@ -639,7 +687,7 @@
             document.getElementById('confirmModal').classList.add('hidden');
         }
 
-        async function uteTransaction() {
+        async function executeTransaction() {
             closeConfirmModal();
             let itemsPayload = [];
             for (let id in state.cart) {
@@ -678,6 +726,9 @@
             }
         }
 
+        let activeReturnRow = null;
+        let maxReturnQty = 0;
+
         function openReturnModal(rowIdx, namaBarang, maxQty) {
             activeReturnRow = rowIdx;
             maxReturnQty = maxQty;
@@ -693,7 +744,7 @@
             document.getElementById('returnModal').classList.add('hidden');
         }
 
-        async function uteReturn() {
+        async function executeReturn() {
             let qty = Number(document.getElementById('returnQtyInput').value);
             if (qty <= 0 || qty > maxReturnQty) {
                 showToast("Jumlah pengembalian tidak valid!", true);
@@ -732,7 +783,8 @@
             const toast = document.getElementById('toast');
             const msgEl = document.getElementById('toastMsg');
             msgEl.innerText = msg;
-            toast.className = `fixed bottom-5 right-5 z-50 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center gap-3 transition-all duration-300 ${isError ? 'bg-red-600' : 'bg-slate-900'}`;
+            toast.className = `fixed bottom-5 right-5 left-5 md:left-auto z-50 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center justify-center md:justify-start gap-3 transition-all duration-300 ${isError ? 'bg-red-600' : 'bg-slate-900'}`;
+            toast.classList.remove('hidden');
             setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3500);
