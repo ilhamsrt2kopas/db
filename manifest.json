@@ -1,6 +1,6 @@
 {
-  "name": "Sekolah Rakyat Kota Pasuruan",
-  "short_name": "Sekolah Rakyat",
+  "name": "Administrasi SRT 2 Kota Pasuruan",
+  "short_name": "SR Kota Pasuruan",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
