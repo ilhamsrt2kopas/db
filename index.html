@@ -1,112 +1,488 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1a56db" />
-  <meta name="description" content="Portal Sekolah Rakyat Kota Pasuruan - Cerdas Bersama, Tumbuh Setara" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SR Pasuruan" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
-  <title>Sekolah Rakyat Kota Pasuruan</title>
-  <link rel="stylesheet" href="css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrasi Sekolah Rakyat</title>
+    <!-- PWA Manifest & Meta -->
+    <link rel="manifest" href="data:application/manifest+json,{
+      'name': 'Administrasi Sekolah Rakyat',
+      'short_name': 'AdminSR',
+      'start_url': '.',
+      'display': 'standalone',
+      'background_color': '#f8fafc',
+      'theme_color': '#2563eb',
+      'icons': [{'src': 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', 'sizes': '512x512', 'type': 'image/png'}]
+    }">
+    <meta name="theme-color" content="#2563eb">
+    <!-- Tailwind CSS & Chart.js & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-  <!-- ========== LANDING ========== -->
-  <div id="landing" class="landing">
-    <div class="logo">
-      <img src="assets/logo.svg" alt="Logo" width="64" height="64" />
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- KONFIGURASI URL GAS (Ganti dengan URL Deployment Web App Anda) -->
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
+    </script>
+
+    <!-- App Container -->
+    <div id="app" class="flex-1 flex flex-col">
+        <!-- Render dinamis via JS -->
     </div>
-    <h1>Selamat datang di portal<br>Sekolah Rakyat Kota Pasuruan</h1>
-    <p class="tagline">Cerdas Bersama, Tumbuh Setara</p>
-    <button class="btn btn-primary" id="btn-to-login" style="min-width:180px">Login</button>
-  </div>
 
-  <!-- ========== LOGIN ========== -->
-  <div id="login-page" class="landing hidden" style="background:var(--gray-100)">
-    <div class="login-card">
-      <div class="logo-sm">
-        <img src="assets/logo.svg" alt="Logo" width="40" height="40" />
-      </div>
-      <h2>Login</h2>
-
-      <form id="form-login-admin">
-        <div class="form-group">
-          <label for="input-nip">NIP (khusus Admin)</label>
-          <input type="text" id="input-nip" placeholder="Masukkan NIP" autocomplete="username" inputmode="numeric" />
+    <!-- Modal Konfirmasi Ambil / Pinjam -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+            <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-circle-question text-blue-600"></i> Konfirmasi Transaksi
+            </h3>
+            <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan pengambilan barang:</p>
+            <div class="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto mb-4 border border-slate-100" id="modalItemList">
+                <!-- Daftar barang terpilih -->
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Tidak</button>
+                <button onclick="executeTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">Ya, Lanjutkan</button>
+            </div>
         </div>
-        <div class="form-group">
-          <label for="input-password">Password</label>
-          <input type="password" id="input-password" placeholder="Masukkan Password" autocomplete="current-password" />
-        </div>
-        <button type="submit" class="btn btn-accent btn-block">Login dengan NIP</button>
-      </form>
-
-      <div class="divider">atau</div>
-
-      <button type="button" class="btn btn-outline btn-block" id="btn-scan-qr" style="color:var(--primary);border-color:var(--primary)">
-        📷 Scan QR Code
-      </button>
-
-      <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--gray-500)">
-        QR: NIP (Admin) · NISN (Siswa) · No.HP (Orang Tua)
-      </p>
     </div>
-  </div>
 
-  <!-- ========== QR SCANNER MODAL ========== -->
-  <div id="qr-modal" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Scan QR Code</h3>
-        <button class="modal-close" id="btn-close-qr">✕</button>
-      </div>
-      <div id="qr-reader"></div>
-      <p style="text-align:center;margin-top:12px;font-size:0.85rem;color:var(--gray-500)">
-        Arahkan kamera ke QR Code
-      </p>
-      <button class="btn btn-accent btn-block" id="btn-switch-camera" style="margin-top:12px">
-        🔄 Ganti Kamera
-      </button>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 hidden z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center gap-3">
+        <span id="toastMsg">Notifikasi</span>
     </div>
-  </div>
 
-  <!-- ========== APP SHELL (setelah login) ========== -->
-  <div id="app" class="app-shell hidden">
-    <header class="topbar">
-      <button class="menu-btn" id="btn-menu" aria-label="Menu">☰</button>
-      <div class="title" id="topbar-title">Dasbor</div>
-      <div class="avatar" id="topbar-avatar">A</div>
-    </header>
+    <script>
+        // State Aplikasi
+        let state = {
+            user: JSON.parse(localStorage.getItem('sr_user')) || null,
+            currentView: localStorage.getItem('sr_user') ? 'dashboard' : 'login',
+            barang: [],
+            transaksi: [],
+            cart: {}, // { idBarang: jumlah }
+            activeTab: 'dashboard', // dashboard, barang
+            loading: false
+        };
 
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-    <nav class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="name" id="sidebar-name">Nama</div>
-        <div class="role" id="sidebar-role">Role</div>
-      </div>
-      <ul class="nav-list" id="nav-list">
-        <!-- diisi dinamis via JS -->
-      </ul>
-      <div style="padding:16px">
-        <button class="btn btn-danger btn-block btn-sm" id="btn-logout">Logout</button>
-      </div>
-    </nav>
+        // Inisialisasi Data dari GAS
+        async function fetchAppData() {
+            if (!GAS_URL || GAS_URL.includes("MASUKKAN_URL")) {
+                showToast("URL Web App GAS belum dikonfigurasi!", true);
+                return;
+            }
+            state.loading = true;
+            render();
+            try {
+                let res = await fetch(GAS_URL + "?action=getData");
+                let data = await res.json();
+                if (data.status === "success") {
+                    state.barang = data.barang;
+                    state.transaksi = data.transaksi;
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal memuat data dari server.", true);
+            }
+            state.loading = false;
+            render();
+        }
 
-    <main class="main-content" id="main-content">
-      <!-- Konten modul di-render di sini -->
-    </main>
-  </div>
+        // Render Utama
+        function render() {
+            const app = document.getElementById('app');
+            if (!state.user) {
+                app.innerHTML = renderLoginView();
+            } else {
+                app.innerHTML = renderMainLayout();
+                if (state.activeTab === 'dashboard') {
+                    renderDashboardContent();
+                } else if (state.activeTab === 'barang') {
+                    renderBarangContent();
+                }
+            }
+        }
 
-  <!-- Toast -->
-  <div class="toast-container" id="toast-container"></div>
+        // 1. Tampilan Login
+        function renderLoginView() {
+            return `
+                <div class="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <div class="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full border border-slate-100">
+                        <div class="text-center mb-8">
+                            <div class="w-20 h-20 bg-blue-600 text-white rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-lg shadow-blue-600/30 mb-4">
+                                <i class="fa-solid fa-school"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold text-slate-900">Sekolah Rakyat</h1>
+                            <p class="text-sm text-slate-500 mt-1">Sistem Administrasi Peminjaman & Pengambilan Barang</p>
+                        </div>
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Nomor Induk Pegawai (NIP)</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-id-card"></i></span>
+                                    <input type="text" id="nip" required class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition" placeholder="Masukkan NIP anda">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Password</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                                    <input type="password" id="password" required class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition" placeholder="••••••••">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full py-3.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
 
-  <!-- Scripts: dynamic import agar hanya load yang dibutuhkan -->
-  <script type="module" src="js/main.js"></script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const nip = document.getElementById('nip').value;
+            const password = document.getElementById('password').value;
+            
+            showToast("Memproses login...", false);
+            try {
+                let res = await fetch(`${GAS_URL}?action=login&nip=${nip}&password=${password}`);
+                let data = await res.json();
+                if (data.status === "success") {
+                    state.user = data.user;
+                    localStorage.setItem('sr_user', JSON.stringify(data.user));
+                    showToast("Login berhasil!");
+                    fetchAppData();
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch (err) {
+                showToast("Terjadi kesalahan koneksi.", true);
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('sr_user');
+            state.user = null;
+            state.cart = {};
+            render();
+        }
+
+        // 2. Layout Utama Setelah Login (Sidebar + Navbar)
+        function renderMainLayout() {
+            return `
+                <div class="flex h-screen overflow-hidden">
+                    <!-- Sidebar untuk Desktop / Mobile Drawer -->
+                    <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800">
+                        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-school"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
+                                <p class="text-xs text-slate-400">Admin Panel</p>
+                            </div>
+                        </div>
+                        <nav class="flex-1 p-4 space-y-1">
+                            <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
+                                <i class="fa-solid fa-chart-pie w-5"></i> Dasbor
+                            </button>
+                            <button onclick="switchTab('barang')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'barang' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
+                                <i class="fa-solid fa-boxes-stacked w-5"></i> Barang
+                            </button>
+                        </nav>
+                        <div class="p-4 border-t border-slate-800">
+                            <div class="mb-3 px-3">
+                                <p class="text-xs font-semibold text-white truncate">${state.user.nama}</p>
+                                <p class="text-[11px] text-slate-400">${state.user.jabatan} ${state.user.isAdmin ? '<span class="text-blue-400 font-bold">(Admin)</span>' : ''}</p>
+                            </div>
+                            <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm text-red-400 hover:bg-red-500/10 transition">
+                                <i class="fa-solid fa-right-from-bracket w-5"></i> Logout
+                            </button>
+                        </div>
+                    </aside>
+
+                    <!-- Main Content Area -->
+                    <div class="flex-1 flex flex-col overflow-y-auto">
+                        <!-- Top Navbar -->
+                        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+                            <div class="flex items-center gap-4">
+                                <h1 class="text-lg font-bold text-slate-800 capitalize" id="pageTitle">${state.activeTab}</h1>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data">
+                                    <i class="fa-solid fa-rotate-right ${state.loading ? 'animate-spin' : ''}"></i>
+                                </button>
+                                <div class="md:hidden flex items-center gap-2">
+                                    <button onclick="switchTab(state.activeTab === 'dashboard' ? 'barang' : 'dashboard')" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">
+                                        Menu Lain
+                                    </button>
+                                    <button onclick="handleLogout()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                                        <i class="fa-solid fa-right-from-bracket"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </header>
+
+                        <!-- Dynamic Content View -->
+                        <main id="mainContent" class="flex-1 p-6 max-w-7xl w-full mx-auto">
+                            <!-- Render konten spesifik tab -->
+                        </main>
+                    </div>
+                </div>
+            `;
+        }
+
+        function switchTab(tab) {
+            state.activeTab = tab;
+            render();
+        }
+
+        // Konten Dasbor
+        function renderDashboardContent() {
+            const main = document.getElementById('mainContent');
+            const todayTrx = state.transaksi.filter(t => t.isToday);
+            
+            main.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Kontainer 1: Peminjaman Barang Hari Ini -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+                        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-blue-600"></i> Peminjaman & Pengambilan Hari Ini
+                        </h3>
+                        <div class="flex-1 overflow-y-auto max-h-80">
+                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-8">Belum ada aktivitas hari ini.</p>' : `
+                                <div class="space-y-3">
+                                    ${todayTrx.map(t => `
+                                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                                            <div>
+                                                <p class="text-sm font-semibold text-slate-800">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                                                <p class="text-xs text-slate-400">${t.namaPengguna} • <span class="font-medium text-blue-600">${t.jenis}</span></p>
+                                            </div>
+                                            <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg ${t.status === 'Selesai' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">${t.status}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Kontainer 2: Stok Barang Tersedia & Diagram Statistik -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+                        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-bar text-blue-600"></i> Statistik Stok Barang
+                        </h3>
+                        <div class="relative flex-1 flex items-center justify-center min-h-[250px]">
+                            <canvas id="stockChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+            setTimeout(initChart, 100);
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('stockChart');
+            if (!ctx) return;
+            
+            const labels = state.barang.map(b => b.nama);
+            const dataStok = state.barang.map(b => b.stok);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sisa Stok',
+                        data: dataStok,
+                        backgroundColor: '#2563eb',
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // Konten Menu Barang
+        function renderBarangContent() {
+            const main = document.getElementById('mainContent');
+            
+            // Cek apakah di keranjang ada barang bertipe "Pinjam"
+            let hasPinjamInCart = false;
+            for (let id in state.cart) {
+                let qty = state.cart[id];
+                if (qty > 0) {
+                    let item = state.barang.find(b => b.id === id);
+                    if (item && item.tipe === 'Pinjam') {
+                        hasPinjamInCart = true;
+                        break;
+                    }
+                }
+            }
+
+            main.innerHTML = `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Daftar Inventaris Barang</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Pilih jumlah barang yang ingin diambil atau dipinjam</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="confirmAction('Ambil')" id="btnAmbil" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed" ${hasPinjamInCart ? 'disabled' : ''}>
+                                <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
+                            </button>
+                            <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-blue-600/20">
+                                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Pinjam
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    <th class="p-4">ID Barang</th>
+                                    <th class="p-4">Nama Barang</th>
+                                    <th class="p-4">Tipe</th>
+                                    <th class="p-4">Stok Tersedia</th>
+                                    <th class="p-4 text-center">Jumlah Pilihan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                ${state.barang.map(b => {
+                                    let qty = state.cart[b.id] || 0;
+                                    return `
+                                        <tr class="hover:bg-slate-50/50 transition">
+                                            <td class="p-4 font-mono text-xs text-slate-500">${b.id}</td>
+                                            <td class="p-4 font-medium text-slate-800">${b.nama}</td>
+                                            <td class="p-4">
+                                                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg ${b.tipe === 'Ambil' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}">${b.tipe}</span>
+                                            </td>
+                                            <td class="p-4 font-semibold text-slate-700">${b.stok}</td>
+                                            <td class="p-4">
+                                                <div class="flex items-center justify-center gap-2">
+                                                    <button onclick="updateCart('${b.id}', -1,${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-minus text-xs"></i></button>
+                                                    <span class="w-8 text-center font-semibold text-slate-800" id="qty-${b.id}">${qty}</span>
+                                                    <button onclick="updateCart('${b.id}', 1,${b.stok})" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCart(id, delta, maxStok) {
+            if (!state.cart[id]) state.cart[id] = 0;
+            let newVal = state.cart[id] + delta;
+            if (newVal < 0) newVal = 0;
+            if (newVal > maxStok) newVal = maxStok;
+            state.cart[id] = newVal;
+            renderBarangContent();
+        }
+
+        let pendingJenis = '';
+        function confirmAction(jenis) {
+            let selectedItems = [];
+            for (let id in state.cart) {
+                let qty = state.cart[id];
+                if (qty > 0) {
+                    let item = state.barang.find(b => b.id === id);
+                    if (item) selectedItems.push({ ...item, qty });
+                }
+            }
+
+            if (selectedItems.length === 0) {
+                showToast("Pilih minimal 1 barang terlebih dahulu!", true);
+                return;
+            }
+
+            pendingJenis = jenis;
+            document.getElementById('modalTypeText').innerText = `Anda akan melakukan ${jenis} untuk barang berikut:`;
+            document.getElementById('modalItemList').innerHTML = selectedItems.map(i => `
+                <div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
+                    <span class="font-medium text-slate-800">${i.nama}</span>
+                    <span class="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg text-xs font-semibold">x${i.qty}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('confirmModal').classList.remove('hidden');
+            document.getElementById('confirmModal').classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('flex');
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        async function executeTransaction() {
+            closeConfirmModal();
+            let itemsPayload = [];
+            for (let id in state.cart) {
+                if (state.cart[id] > 0) {
+                    itemsPayload.push({ id: id, jumlah: state.cart[id] });
+                }
+            }
+
+            let payload = {
+                action: "submitTransaction",
+                payload: {
+                    jenis: pendingJenis,
+                    user: { nip: state.user.nip, nama: state.user.nama },
+                    items: itemsPayload
+                }
+            };
+
+            showToast("Memproses transaksi...", false);
+            try {
+                let res = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                let result = await res.json();
+                if (result.status === "success") {
+                    showToast("Transaksi berhasil dicatat!");
+                    state.cart = {};
+                    fetchAppData();
+                } else {
+                    showToast(result.message, true);
+                }
+            } catch (err) {
+                showToast("Gagal terhubung ke server.", true);
+            }
+        }
+
+        // Toast Helper
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMsg');
+            msgEl.innerText = msg;
+            toast.className = `fixed bottom-5 right-5 z-50 text-white px-5 py-3 rounded-xl shadow-xl text-sm flex items-center gap-3 transition-all duration-300 ${isError ? 'bg-red-600' : 'bg-slate-900'}`;
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+
+        // Initial Load
+        window.onload = () => {
+            if (state.user) {
+                fetchAppData();
+            } else {
+                render();
+            }
+        };
+    </script>
 </body>
 </html>
