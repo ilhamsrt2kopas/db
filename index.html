@@ -95,7 +95,7 @@
             transaksi: [],
             cart: {}, 
             addStockCart: {}, 
-            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ], 
+            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ], 
             activeTab: 'dashboard',
             barangSubmenuOpen: true,
             searchQuery: '',
@@ -140,26 +140,27 @@
                 if (errTrx) throw errTrx;
 
                 state.barang = (dataBarang || []).map(b => ({
-                    id: b.id_barang,
-                    sumberPerolehan: b.sumber_perolehan,
-                    kategori: b.kategori,
-                    nama: b.nama_barang,
-                    stok: Number(b.stok),
+                    id: b.id_barang || b.id,
+                    sumberPerolehan: b.sumber_perolehan || '',
+                    kategori: b.kategori || 'ATK',
+                    nama: b.nama_barang || b.nama || '',
+                    stok: Number(b.stok || 0),
                     hanyaPinjam: Boolean(b.hanya_pinjam)
                 }));
 
                 const todayStr = new Date().toISOString().split('T')[0];
                 state.transaksi = (dataTrx || []).map(t => {
-                    const trxDateStr = new Date(t.created_at).toISOString().split('T')[0];
+                    const trxCreatedAt = t.created_at ? new Date(t.created_at) : new Date();
+                    const trxDateStr = trxCreatedAt.toISOString().split('T')[0];
                     return {
-                        idTransaksi: t.id_transaksi,
-                        nip: t.nip,
-                        namaPengguna: t.nama_pengguna,
+                        idTransaksi: t.id_transaksi || t.id,
+                        nip: t.nip || '',
+                        namaPengguna: t.nama_pengguna || t.nama || 'Pengguna',
                         idBarang: t.id_barang,
-                        namaBarang: t.nama_barang,
-                        jumlah: Number(t.jumlah),
-                        jenis: t.jenis_transaksi,
-                        status: t.status,
+                        namaBarang: t.nama_barang || 'Barang',
+                        jumlah: Number(t.jumlah || 0),
+                        jenis: t.jenis_transaksi || t.jenis || '',
+                        status: t.status || '',
                         isToday: (trxDateStr === todayStr)
                     };
                 });
@@ -179,20 +180,9 @@
             }
 
             realtimeChannel = supabaseClient.channel('public-db-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'barang' },
-                    (payload) => {
-                        fetchAppData(true);
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'transaksi' },
-                    (payload) => {
-                        fetchAppData(true);
-                    }
-                )
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'barang' }, () => fetchAppData(true))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'transaksi' }, () => fetchAppData(true))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'masuk' }, () => fetchAppData(true))
                 .subscribe();
         }
 
@@ -667,13 +657,15 @@
             `;
         }
 
-        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN
+        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN (PERBAIKAN AGAR PEMINJAMAN SELALU MUNCUL)
         function renderPengembalianContent() {
             const main = document.getElementById('mainContent');
+            
             let activeLoans = state.transaksi.filter(t => {
                 let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
-                let isUnreturned = t.jenis === 'Pinjam' && !t.status.includes('Dikembalikan');
-                return isMyLoan && isUnreturned;
+                let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
+                let isUnreturned = !(t.status || '').toLowerCase().includes('dikembalikan');
+                return isMyLoan && isJenisPinjam && isUnreturned;
             });
 
             main.innerHTML = `
@@ -717,7 +709,7 @@
             `;
         }
 
-        // MODUL TAMBAH STOK BARANG
+        // MODUL TAMBAH STOK BARANG DENGAN PENCATATAN KE TABEL `masuk`
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
             const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
@@ -770,9 +762,9 @@
                                             <div>
                                                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
                                                 <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                    <option value="Perkantoran" ${item.sumber === 'Perkantoran' ? 'selected' : ''}>Perkantoran (A)</option>
-                                                    <option value="Persediaan" ${item.sumber === 'Persediaan' ? 'selected' : ''}>Persediaan (B)</option>
-                                                    <option value="Media Pembelajaran" ${item.sumber === 'Media Pembelajaran' ? 'selected' : ''}>Media Pembelajaran (C)</option>
+                                                    <option value="Akun Belanja ATK" ${item.sumber === 'Akun Belanja ATK' ? 'selected' : ''}>Akun Belanja ATK (A)</option>
+                                                    <option value="Akun Belanja Persediaan" ${item.sumber === 'Akun Belanja Persediaan' ? 'selected' : ''}>Akun Belanja Persediaan (B)</option>
+                                                    <option value="Akun Belanja Media Pembelajaran" ${item.sumber === 'Akun Belanja Media Pembelajaran' ? 'selected' : ''}>Akun Belanja Media Pembelajaran (C)</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -838,7 +830,7 @@
         }
 
         function addNewItemRow() {
-            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false });
+            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
             renderTambahStokContent();
             setTimeout(() => {
                 let newIdx = state.newItemList.length - 1;
@@ -878,6 +870,7 @@
             state.addStockCart[id] = num;
         }
 
+        // FUNGSI SUBMIT DENGAN LOG PENAMBAHAN KE TABEL `masuk`
         async function submitAddStock() {
             let existingItems = [];
             for (let id in state.addStockCart) {
@@ -893,8 +886,11 @@
                 return;
             }
 
-            showLoading("Menyimpan penambahan stok...");
+            showLoading("Menyimpan penambahan stok & log...");
             try {
+                let logMasukPayload = [];
+
+                // 1. Proses Penambahan Barang Lama
                 for (let item of existingItems) {
                     let targetBarang = state.barang.find(b => b.id === item.id);
                     if (targetBarang) {
@@ -903,15 +899,23 @@
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', item.id);
+
+                        logMasukPayload.push({
+                            id_barang: item.id,
+                            nama_barang: targetBarang.nama,
+                            jumlah: item.addQty,
+                            added_at: new Date().toISOString()
+                        });
                     }
                 }
 
+                // 2. Proses Pendaftaran Barang Baru
                 if (validNewItems.length > 0) {
                     let insertPayload = [];
                     for (let newItem of validNewItems) {
                         let prefix = "A";
-                        if (newItem.sumber === "Persediaan") prefix = "B";
-                        else if (newItem.sumber === "Media Pembelajaran") prefix = "C";
+                        if (newItem.sumber === "Akun Belanja Persediaan") prefix = "B";
+                        else if (newItem.sumber === "Akun Belanja Media Pembelajaran") prefix = "C";
 
                         let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
                         let newSeq = countPrefix + 1;
@@ -928,14 +932,28 @@
                         });
 
                         state.barang.push({ id: newIdBarang, nama: newItem.nama });
+
+                        if (newItem.stok > 0) {
+                            logMasukPayload.push({
+                                id_barang: newIdBarang,
+                                nama_barang: newItem.nama.trim(),
+                                jumlah: newItem.stok,
+                                added_at: new Date().toISOString()
+                            });
+                        }
                     }
 
                     await supabaseClient.from('barang').insert(insertPayload);
                 }
 
-                showToast("Penambahan stok dan item baru berhasil disimpan!");
+                // 3. Catat Log ke Tabel `masuk`
+                if (logMasukPayload.length > 0) {
+                    await supabaseClient.from('masuk').insert(logMasukPayload);
+                }
+
+                showToast("Penambahan stok & log berhasil disimpan!");
                 state.addStockCart = {};
-                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ];
+                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ];
                 await fetchAppData();
             } catch(err) {
                 console.error(err);
