@@ -46,7 +46,7 @@
     <!-- App Root Container -->
     <div id="app" class="flex-1 flex flex-col"></div>
 
-    <!-- Modal Konfirmasi -->
+    <!-- Modal Konfirmasi Transaksi (Ambil / Pinjam) -->
     <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
@@ -90,7 +90,9 @@
             barang: [],
             transaksi: [],
             cart: {}, 
+            addStockCart: {}, // Keranjang tambah stok barang lama
             activeTab: 'dashboard',
+            barangSubmenuOpen: true,
             searchQuery: '',
             selectedCategory: 'Semua',
             sortColumn: 'nama',
@@ -149,6 +151,8 @@
                     renderDashboardContent();
                 } else if (state.activeTab === 'barang') {
                     renderBarangContent();
+                } else if (state.activeTab === 'tambahstok') {
+                    renderTambahStokContent();
                 } else if (state.activeTab === 'gantipassword') {
                     renderPasswordContent();
                 }
@@ -218,11 +222,17 @@
             localStorage.removeItem('sr_user');
             state.user = null;
             state.cart = {};
+            state.addStockCart = {};
             render();
         }
 
         function toggleMobileMenu() {
             state.mobileMenuOpen = !state.mobileMenuOpen;
+            render();
+        }
+
+        function toggleBarangSubmenu() {
+            state.barangSubmenuOpen = !state.barangSubmenuOpen;
             render();
         }
 
@@ -235,7 +245,7 @@
                             <div class="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
                                 <i class="fa-solid fa-school"></i>
                             </div>
-                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</h2>
+                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat Terintegrasi 2</h2>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="fetchAppData()" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>
@@ -254,18 +264,35 @@
                                         </div>
                                         <div>
                                             <h2 class="font-bold text-white text-sm">Sekolah Rakyat Terintegrasi 2</h2>
-                                            <p class="text-[11px] text-orange-400">Kota Pasuruan</p>
+                                            <p class="text-[11px] text-orange-400">Kota Pasuruan/Listrik</p>
                                         </div>
                                     </div>
                                     <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
                                 </div>
-                                <nav class="flex-1 space-y-1.5">
+                                <nav class="flex-1 space-y-1.5 overflow-y-auto">
                                     <button onclick="switchTab('dashboard'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'dashboard' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
                                         <i class="fa-solid fa-chart-pie w-5"></i> Dasbor
                                     </button>
-                                    <button onclick="switchTab('barang'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'barang' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
-                                        <i class="fa-solid fa-boxes-stacked w-5"></i> Barang
-                                    </button>
+                                    
+                                    <div>
+                                        <button onclick="toggleBarangSubmenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                                            <span class="flex items-center gap-3"><i class="fa-solid fa-boxes-stacked w-5"></i> Barang</span>
+                                            <i class="fa-solid ${state.barangSubmenuOpen ? 'fa-chevron-down' : 'fa-chevron-right'} text-xs"></i>
+                                        </button>
+                                        ${state.barangSubmenuOpen ? `
+                                            <div class="pl-9 pr-2 py-1 space-y-1">
+                                                <button onclick="switchTab('barang'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'barang' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                                    Daftar Barang
+                                                </button>
+                                                ${state.user.isAdmin ? `
+                                                    <button onclick="switchTab('tambahstok'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'tambahstok' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                                        Tambah Stok Barang
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+
                                     <button onclick="switchTab('gantipassword'); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'gantipassword' ? 'bg-orange-500 text-white shadow-lg' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
                                         <i class="fa-solid fa-key w-5"></i> Ganti Password
                                     </button>
@@ -291,16 +318,33 @@
                             </div>
                             <div>
                                 <h2 class="font-bold text-white text-sm">Sekolah Rakyat Terintegrasi 2</h2>
-                                <p class="text-xs text-orange-400">Kota Pasuruan</p>
+                                <p class="text-xs text-orange-400">Kota Pasuruan/Listrik</p>
                             </div>
                         </div>
-                        <nav class="flex-1 p-4 space-y-1">
+                        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
                             <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'dashboard' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
                                 <i class="fa-solid fa-chart-pie w-5"></i> Dasbor
                             </button>
-                            <button onclick="switchTab('barang')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'barang' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
-                                <i class="fa-solid fa-boxes-stacked w-5"></i> Barang
-                            </button>
+
+                            <div>
+                                <button onclick="toggleBarangSubmenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                                    <span class="flex items-center gap-3"><i class="fa-solid fa-boxes-stacked w-5"></i> Barang</span>
+                                    <i class="fa-solid ${state.barangSubmenuOpen ? 'fa-chevron-down' : 'fa-chevron-right'} text-xs"></i>
+                                </button>
+                                ${state.barangSubmenuOpen ? `
+                                    <div class="pl-9 pr-2 py-1 space-y-1">
+                                        <button onclick="switchTab('barang')" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'barang' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                            Daftar Barang
+                                        </button>
+                                        ${state.user.isAdmin ? `
+                                            <button onclick="switchTab('tambahstok')" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'tambahstok' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                                Tambah Stok Barang
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+
                             <button onclick="switchTab('gantipassword')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition ${state.activeTab === 'gantipassword' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}">
                                 <i class="fa-solid fa-key w-5"></i> Ganti Password
                             </button>
@@ -321,7 +365,10 @@
                         <!-- Desktop Top Navbar -->
                         <header class="bg-white border-b border-slate-200 px-6 py-4 hidden md:flex items-center justify-between sticky top-0 z-20 shrink-0">
                             <div class="flex items-center gap-4">
-                                <h1 class="text-lg font-bold text-slate-800 capitalize">${state.activeTab === 'gantipassword' ? 'Ganti Password' : state.activeTab}</h1>
+                                <h1 class="text-lg font-bold text-slate-800 capitalize">${
+                                    state.activeTab === 'gantipassword' ? 'Ganti Password' : 
+                                    state.activeTab === 'tambahstok' ? 'Tambah Stok Barang' : state.activeTab
+                                }</h1>
                             </div>
                             <div class="flex items-center gap-3">
                                 <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data">
@@ -474,7 +521,6 @@
             }
         }
 
-        // Fungsi pengecekan jika ada barang bertipe "Hanya Pinjam" di keranjang
         function isHanyaPinjamInCart() {
             for (let id in state.cart) {
                 if (state.cart[id] > 0) {
@@ -489,7 +535,6 @@
 
         function renderBarangContent() {
             const main = document.getElementById('mainContent');
-            
             let hasPinjamInCart = isHanyaPinjamInCart();
             let filteredBarang = getFilteredBarang();
             let activeLoans = state.transaksi.filter(t => {
@@ -498,11 +543,10 @@
                 return isMyLoan && isUnreturned;
             });
 
-            const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['Semua', 'ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Kebersihan', 'Kesehatan', 'Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
-                    <!-- Tab Inventaris Barang -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                         <div class="p-3 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div>
@@ -519,7 +563,6 @@
                             </div>
                         </div>
 
-                        <!-- Filter & Search Bar -->
                         <div class="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
                             <div class="relative w-full md:w-80">
                                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400"><i class="fa-solid fa-search"></i></span>
@@ -532,7 +575,6 @@
                             </div>
                         </div>
 
-                        <!-- Tabel Kompak Tanpa Perlu Scroll Horizontal Lebar di HP -->
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-xs sm:text-sm">
                                <thead>
@@ -549,7 +591,6 @@
                         </div>
                     </div>
 
-                    <!-- Modul Pengembalian Barang -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
                         <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-arrow-rotate-left text-green-600"></i> Pengembalian Barang Pinjaman
@@ -589,6 +630,180 @@
                     </div>
                 </div>
             `;
+        }
+
+        // FUNGSI MODUL: TAMBAH STOK BARANG (ADMIN)
+        function renderTambahStokContent() {
+            const main = document.getElementById('mainContent');
+            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+
+            main.innerHTML = `
+                <div class="space-y-6">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-6 gap-3">
+                            <div>
+                                <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-boxes-packing text-orange-500"></i> Modul Tambah Stok Barang
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Tambahkan jumlah stok untuk barang yang sudah ada atau daftarkan item barang baru.</p>
+                            </div>
+                            <button onclick="submitAddStock()" class="w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Penambahan Stok
+                            </button>
+                        </div>
+
+                        <!-- Daftar Barang Disusun Berdasarkan Kategori -->
+                        <div class="space-y-6 mb-8">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Tambah Stok Barang Yang Sudah Ada</h4>
+                            ${categories.map(cat => {
+                                let itemsInCat = state.barang.filter(b => b.kategori === cat);
+                                if (itemsInCat.length === 0) return '';
+                                return `
+                                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                                        <div class="bg-slate-100 px-4 py-2.5 border-b border-slate-200 font-bold text-xs text-slate-700 flex justify-between items-center">
+                                            <span><i class="fa-solid fa-folder text-orange-500 mr-2"></i>Kategori: ${cat}</span>
+                                            <span class="text-[11px] font-normal text-slate-500">${itemsInCat.length} Item</span>
+                                        </div>
+                                        <div class="divide-y divide-slate-100">
+                                            ${itemsInCat.map(b => {
+                                                let addQty = state.addStockCart[b.id] || 0;
+                                                return `
+                                                    <div class="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition">
+                                                        <div>
+                                                            <p class="font-medium text-slate-800 text-xs sm:text-sm">${b.nama}</p>
+                                                            <p class="text-[11px] text-slate-400 mt-0.5">Stok Saat Ini: <span class="font-bold text-slate-700">${b.stok}</span> | Sumber: ${b.sumberPerolehan}</p>
+                                                        </div>
+                                                        <div class="flex items-center gap-2 self-end sm:self-center">
+                                                            <span class="text-xs text-slate-500 font-medium">Tambah:</span>
+                                                            <button onclick="updateAddStockCart('${b.id}', -1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                                                            <input type="number" min="0" value="${addQty}" oninput="manualInputAddStockCart('${b.id}', this.value)" class="w-16 text-center font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                            <button onclick="updateAddStockCart('${b.id}', 1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Baris Paling Bawah: Field Tambah Item Baru -->
+                        <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6">
+                            <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru (Opsional)
+                            </h4>
+                            <p class="text-xs text-slate-500 mb-4">Isi formulir ini hanya jika Anda ingin menambahkan barang jenis baru yang belum terdaftar di atas.</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div class="sm:col-span-2 lg:col-span-1">
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Barang Baru</label>
+                                    <input type="text" id="newItemNama" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Proyektor Portable">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
+                                    <select id="newItemKategori" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                        <option value="ATK">ATK</option>
+                                        <option value="Elektronik/Listrik">Elektronik/Listrik</option>
+                                        <option value="Konsumsi">Konsumsi</option>
+                                        <option value="Kendaraan">Kendaraan</option>
+                                        <option value="Alat Olahraga">Alat Olahraga</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
+                                    <select id="newItemSumber" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                        <option value="Akun Belanja ATK">Akun Belanja ATK (Prefix A)</option>
+                                        <option value="Akun Belanja Persediaan">Akun Belanja Persediaan (Prefix B)</option>
+                                        <option value="Akun Belanja Media Pembelajaran">Akun Belanja Media Pembelajaran (Prefix C)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Stok Awal</label>
+                                    <input type="number" id="newItemStok" min="0" value="0" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                </div>
+                                <div class="flex items-center pt-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="newItemHanyaPinjam" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-slate-300">
+                                        <span class="text-xs font-semibold text-slate-700">Barang "Hanya Pinjam"</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateAddStockCart(id, delta) {
+            if (!state.addStockCart[id]) state.addStockCart[id] = 0;
+            let newVal = state.addStockCart[id] + delta;
+            if (newVal < 0) newVal = 0;
+            state.addStockCart[id] = newVal;
+            renderTambahStokContent();
+        }
+
+        function manualInputAddStockCart(id, val) {
+            let num = parseInt(val);
+            if (isNaN(num) || num < 0) num = 0;
+            state.addStockCart[id] = num;
+        }
+
+        async function submitAddStock() {
+            let existingItems = [];
+            for (let id in state.addStockCart) {
+                if (state.addStockCart[id] > 0) {
+                    existingItems.push({ id: id, addQty: state.addStockCart[id] });
+                }
+            }
+
+            let newItemNama = document.getElementById('newItemNama') ? document.getElementById('newItemNama').value : '';
+            let newItemKategori = document.getElementById('newItemKategori') ? document.getElementById('newItemKategori').value : '';
+            let newItemSumber = document.getElementById('newItemSumber') ? document.getElementById('newItemSumber').value : '';
+            let newItemStok = document.getElementById('newItemStok') ? parseInt(document.getElementById('newItemStok').value) : 0;
+            let newItemHanyaPinjam = document.getElementById('newItemHanyaPinjam') ? document.getElementById('newItemHanyaPinjam').checked : false;
+
+            let hasNewItem = newItemNama && newItemNama.trim() !== '';
+
+            if (existingItems.length === 0 && !hasNewItem) {
+                showToast("Isi jumlah penambahan stok atau lengkapi formulir barang baru!", true);
+                return;
+            }
+
+            let payload = {
+                action: "addStock",
+                payload: {
+                    user: { nip: state.user.nip, isAdmin: state.user.isAdmin },
+                    existingItems: existingItems,
+                    newItem: hasNewItem ? {
+                        nama: newItemNama,
+                        kategori: newItemKategori,
+                        sumberPerolehan: newItemSumber,
+                        stokAwal: newItemStok,
+                        hanyaPinjam: newItemHanyaPinjam
+                    } : null
+                }
+            };
+
+            showLoading("Menyimpan penambahan stok...");
+            try {
+                let res = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                let result = await res.json();
+                if (result.status === "success") {
+                    showToast(result.message);
+                    state.addStockCart = {};
+                    await fetchAppData();
+                } else {
+                    showToast(result.message, true);
+                }
+            } catch(err) {
+                showToast("Gagal menyimpan data penambahan stok.", true);
+            } finally {
+                hideLoading();
+            }
         }
 
         function getFilteredBarang() {
@@ -668,7 +883,6 @@
             if (newVal > maxStok) newVal = maxStok;
             state.cart[id] = newVal;
             
-            // Perbarui tombol Ambil jika ada barang Hanya Pinjam
             const btnAmbil = document.getElementById('btnAmbil');
             if (btnAmbil) {
                 btnAmbil.disabled = isHanyaPinjamInCart();
@@ -686,7 +900,6 @@
             if (num > maxStok) num = maxStok;
             state.cart[id] = num;
 
-            // Perbarui status tombol Ambil
             const btnAmbil = document.getElementById('btnAmbil');
             if (btnAmbil) {
                 btnAmbil.disabled = isHanyaPinjamInCart();
