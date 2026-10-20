@@ -11,7 +11,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     
-    <!-- Tailwind CSS & Chart.js & FontAwesome -->
+    <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -31,8 +32,11 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
+    <!-- KONFIGURASI SUPABASE -->
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
+        const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
+        const SUPABASE_ANON_KEY = "PASTE_ANON_KEY_SUPABASE_ANDA_DISINI"; 
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
 
     <!-- Global Loading Overlay -->
@@ -46,7 +50,7 @@
     <!-- App Root Container -->
     <div id="app" class="flex-1 flex flex-col"></div>
 
-    <!-- Modal Konfirmasi Transaksi (Ambil / Pinjam) -->
+    <!-- Modal Konfirmasi Transaksi -->
     <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
@@ -90,7 +94,7 @@
             barang: [],
             transaksi: [],
             cart: {}, 
-            addStockCart: {}, // Keranjang tambah stok barang lama
+            addStockCart: {}, 
             activeTab: 'dashboard',
             barangSubmenuOpen: true,
             searchQuery: '',
@@ -118,24 +122,53 @@
         }
 
         async function fetchAppData() {
-            if (!GAS_URL) {
-                showToast("URL Web App GAS belum dikonfigurasi!", true);
-                return;
-            }
-            showLoading("Mengambil data terbaru...");
+            showLoading("Mengambil data dari Supabase...");
             try {
-                let res = await fetch(GAS_URL + "?action=getData");
-                let data = await res.json();
-                if (data.status === "success") {
-                    state.barang = data.barang || [];
-                    state.transaksi = data.transaksi || [];
-                    render();
-                } else {
-                    showToast("Gagal memuat data", true);
-                }
+                // Fetch Barang
+                const { data: dataBarang, error: errBarang } = await supabaseClient
+                    .from('barang')
+                    .select('*')
+                    .order('nama_barang', { ascending: true });
+                if (errBarang) throw errBarang;
+
+                // Fetch Transaksi
+                const { data: dataTrx, error: errTrx } = await supabaseClient
+                    .from('transaksi')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                if (errTrx) throw errTrx;
+
+                // Format Data Barang
+                state.barang = (dataBarang || []).map(b => ({
+                    id: b.id_barang,
+                    sumberPerolehan: b.sumber_perolehan,
+                    kategori: b.kategori,
+                    nama: b.nama_barang,
+                    stok: Number(b.stok),
+                    hanyaPinjam: Boolean(b.hanya_pinjam)
+                }));
+
+                // Format Data Transaksi
+                const todayStr = new Date().toISOString().split('T')[0];
+                state.transaksi = (dataTrx || []).map(t => {
+                    const trxDateStr = new Date(t.created_at).toISOString().split('T')[0];
+                    return {
+                        idTransaksi: t.id_transaksi,
+                        nip: t.nip,
+                        namaPengguna: t.nama_pengguna,
+                        idBarang: t.id_barang,
+                        namaBarang: t.nama_barang,
+                        jumlah: Number(t.jumlah),
+                        jenis: t.jenis_transaksi,
+                        status: t.status,
+                        isToday: (trxDateStr === todayStr)
+                    };
+                });
+
+                render();
             } catch (err) {
-                console.error(err);
-                showToast("Gagal terhubung ke server.", true);
+                console.error("Supabase error:", err);
+                showToast("Gagal memuat data dari database.", true);
             } finally {
                 hideLoading();
             }
@@ -167,7 +200,7 @@
                             <div class="w-16 h-16 sm:w-20 sm:h-20 bg-orange-500 text-white rounded-2xl mx-auto flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-lg shadow-orange-500/30 mb-4">
                                 <i class="fa-solid fa-school"></i>
                             </div>
-                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</h1>
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Sekolah Rakyat</h1>
                             <p class="text-xs sm:text-sm text-slate-500 mt-1">Sistem Administrasi Peminjaman & Pengambilan Barang</p>
                         </div>
                         <form onsubmit="handleLogin(event)" class="space-y-4">
@@ -196,23 +229,37 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const nip = document.getElementById('nip').value;
-            const password = document.getElementById('password').value;
+            const nip = document.getElementById('nip').value.trim();
+            const password = document.getElementById('password').value.trim();
             
             showLoading("Memverifikasi Login...");
             try {
-                let res = await fetch(`${GAS_URL}?action=login&nip=${nip}&password=${password}`);
-                let data = await res.json();
-                if (data.status === "success") {
-                    state.user = data.user;
-                    localStorage.setItem('sr_user', JSON.stringify(data.user));
+                const { data, error } = await supabaseClient
+                    .from('pengguna')
+                    .select('*')
+                    .eq('nip', nip)
+                    .eq('password', password)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (data) {
+                    const userData = {
+                        nip: data.nip,
+                        nama: data.nama,
+                        jabatan: data.jabatan,
+                        isAdmin: Boolean(data.is_admin)
+                    };
+                    state.user = userData;
+                    localStorage.setItem('sr_user', JSON.stringify(userData));
                     showToast("Login berhasil!");
                     await fetchAppData();
                 } else {
-                    showToast(data.message, true);
+                    showToast("NIP atau Password salah!", true);
                 }
             } catch (err) {
-                showToast("Terjadi kesalahan koneksi.", true);
+                console.error(err);
+                showToast("Terjadi kesalahan koneksi login.", true);
             } finally {
                 hideLoading();
             }
@@ -239,13 +286,12 @@
         function renderMainLayout() {
             return `
                 <div class="flex flex-col md:flex-row h-screen overflow-hidden">
-                    <!-- Mobile Top Bar -->
                     <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between md:hidden z-30 shrink-0">
                         <div class="flex items-center gap-2.5">
                             <div class="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
                                 <i class="fa-solid fa-school"></i>
                             </div>
-                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat Terintegrasi 2</h2>
+                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat</h2>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="fetchAppData()" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>
@@ -253,7 +299,6 @@
                         </div>
                     </header>
 
-                    <!-- Mobile Drawer Overlay -->
                     ${state.mobileMenuOpen ? `
                         <div class="fixed inset-0 bg-black/50 z-40 md:hidden flex justify-end" onclick="toggleMobileMenu()">
                             <div class="w-72 bg-slate-900 text-slate-300 h-full flex flex-col p-5 shadow-2xl" onclick="event.stopPropagation()">
@@ -263,8 +308,8 @@
                                             <i class="fa-solid fa-school"></i>
                                         </div>
                                         <div>
-                                            <h2 class="font-bold text-white text-sm">Sekolah Rakyat Terintegrasi 2</h2>
-                                            <p class="text-[11px] text-orange-400">Kota Pasuruan/Listrik</p>
+                                            <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
+                                            <p class="text-[11px] text-orange-400">Admin Panel</p>
                                         </div>
                                     </div>
                                     <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -310,15 +355,14 @@
                         </div>
                     ` : ''}
 
-                    <!-- Desktop Sidebar -->
                     <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800 shrink-0">
                         <div class="p-6 border-b border-slate-800 flex items-center gap-3">
                             <div class="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold shadow-md shadow-orange-500/20">
                                 <i class="fa-solid fa-school"></i>
                             </div>
                             <div>
-                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat Terintegrasi 2</h2>
-                                <p class="text-xs text-orange-400">Kota Pasuruan/Listrik</p>
+                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
+                                <p class="text-xs text-orange-400">Admin Panel</p>
                             </div>
                         </div>
                         <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -360,9 +404,7 @@
                         </div>
                     </aside>
 
-                    <!-- Main Content Area -->
                     <div class="flex-1 flex flex-col overflow-y-auto">
-                        <!-- Desktop Top Navbar -->
                         <header class="bg-white border-b border-slate-200 px-6 py-4 hidden md:flex items-center justify-between sticky top-0 z-20 shrink-0">
                             <div class="flex items-center gap-4">
                                 <h1 class="text-lg font-bold text-slate-800 capitalize">${
@@ -377,7 +419,6 @@
                             </div>
                         </header>
 
-                        <!-- Dynamic Content -->
                         <main id="mainContent" class="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto"></main>
                     </div>
                 </div>
@@ -395,7 +436,6 @@
             
             main.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Kontainer 1: Peminjaman Hari Ini -->
                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
@@ -423,7 +463,6 @@
                         </div>
                     </div>
 
-                    <!-- Kontainer 2: Diagram Stok -->
                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Barang
@@ -494,28 +533,30 @@
 
         async function handleChangePassword(e) {
             e.preventDefault();
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
+            const oldPassword = document.getElementById('oldPassword').value.trim();
+            const newPassword = document.getElementById('newPassword').value.trim();
 
             showLoading("Memperbarui password...");
             try {
-                let res = await fetch(GAS_URL, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        action: "changePassword",
-                        payload: { nip: state.user.nip, oldPassword, newPassword }
-                    })
-                });
-                let result = await res.json();
-                if (result.status === "success") {
-                    showToast(result.message);
+                const { data, error } = await supabaseClient
+                    .from('pengguna')
+                    .update({ password: newPassword })
+                    .eq('nip', state.user.nip)
+                    .eq('password', oldPassword)
+                    .select();
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    showToast("Password berhasil diperbarui!");
                     document.getElementById('oldPassword').value = '';
                     document.getElementById('newPassword').value = '';
                 } else {
-                    showToast(result.message, true);
+                    showToast("Password lama tidak sesuai!", true);
                 }
             } catch(err) {
-                showToast("Gagal terhubung ke server.", true);
+                console.error(err);
+                showToast("Gagal memperbarui password.", true);
             } finally {
                 hideLoading();
             }
@@ -525,9 +566,7 @@
             for (let id in state.cart) {
                 if (state.cart[id] > 0) {
                     let item = state.barang.find(b => b.id === id);
-                    if (item && item.hanyaPinjam) {
-                        return true;
-                    }
+                    if (item && item.hanyaPinjam) return true;
                 }
             }
             return false;
@@ -543,7 +582,7 @@
                 return isMyLoan && isUnreturned;
             });
 
-            const categories = ['Semua', 'ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Kebersihan', 'Kesehatan', 'Olahraga'];
+            const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -554,7 +593,7 @@
                                 <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">Atur jumlah barang untuk pengambilan atau peminjaman</p>
                             </div>
                             <div class="flex gap-2 w-full sm:w-auto">
-                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="flex-1 sm:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-green-600/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600 text-center" ${hasPinjamInCart ? 'disabled' : ''}>
+                                <button onclick="confirmAction('Ambil')" id="btnAmbil" class="flex-1 sm:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-green-600/20 disabled:opacity-40 disabled:cursor-not-allowed text-center" ${hasPinjamInCart ? 'disabled' : ''}>
                                     <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
                                 </button>
                                 <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="flex-1 sm:flex-none px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 text-center">
@@ -617,7 +656,7 @@
                                                 <td class="p-2.5 sm:p-3 font-semibold text-slate-700">${t.jumlah}</td>
                                                 <td class="p-2.5 sm:p-3"><span class="px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-amber-50 text-amber-600">${t.status}</span></td>
                                                 <td class="p-2.5 sm:p-3 text-center">
-                                                    <button onclick="openReturnModal(${t.rowIdx}, '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-medium transition shadow">
+                                                    <button onclick="openReturnModal('${t.idTransaksi}', '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-medium transition shadow">
                                                         Kembalikan
                                                     </button>
                                                 </td>
@@ -632,10 +671,9 @@
             `;
         }
 
-        // FUNGSI MODUL: TAMBAH STOK BARANG (ADMIN)
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
-            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -652,7 +690,6 @@
                             </button>
                         </div>
 
-                        <!-- Daftar Barang Disusun Berdasarkan Kategori -->
                         <div class="space-y-6 mb-8">
                             <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Tambah Stok Barang Yang Sudah Ada</h4>
                             ${categories.map(cat => {
@@ -688,7 +725,6 @@
                             }).join('')}
                         </div>
 
-                        <!-- Baris Paling Bawah: Field Tambah Item Baru -->
                         <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6">
                             <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider mb-3 flex items-center gap-2">
                                 <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru (Opsional)
@@ -704,7 +740,7 @@
                                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
                                     <select id="newItemKategori" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
                                         <option value="ATK">ATK</option>
-                                        <option value="Elektronik/Listrik">Elektronik/Listrik</option>
+                                        <option value="Alat Elektronik">Alat Elektronik</option>
                                         <option value="Konsumsi">Konsumsi</option>
                                         <option value="Kendaraan">Kendaraan</option>
                                         <option value="Alat Olahraga">Alat Olahraga</option>
@@ -757,50 +793,60 @@
                 }
             }
 
-            let newItemNama = document.getElementById('newItemNama') ? document.getElementById('newItemNama').value : '';
+            let newItemNama = document.getElementById('newItemNama') ? document.getElementById('newItemNama').value.trim() : '';
             let newItemKategori = document.getElementById('newItemKategori') ? document.getElementById('newItemKategori').value : '';
             let newItemSumber = document.getElementById('newItemSumber') ? document.getElementById('newItemSumber').value : '';
             let newItemStok = document.getElementById('newItemStok') ? parseInt(document.getElementById('newItemStok').value) : 0;
             let newItemHanyaPinjam = document.getElementById('newItemHanyaPinjam') ? document.getElementById('newItemHanyaPinjam').checked : false;
 
-            let hasNewItem = newItemNama && newItemNama.trim() !== '';
+            let hasNewItem = newItemNama !== '';
 
             if (existingItems.length === 0 && !hasNewItem) {
-                showToast("Isi jumlah penambahan stok atau lengkapi formulir barang baru!", true);
+                showToast("Isi penambahan stok atau daftarkan barang baru!", true);
                 return;
             }
 
-            let payload = {
-                action: "addStock",
-                payload: {
-                    user: { nip: state.user.nip, isAdmin: state.user.isAdmin },
-                    existingItems: existingItems,
-                    newItem: hasNewItem ? {
-                        nama: newItemNama,
-                        kategori: newItemKategori,
-                        sumberPerolehan: newItemSumber,
-                        stokAwal: newItemStok,
-                        hanyaPinjam: newItemHanyaPinjam
-                    } : null
-                }
-            };
-
             showLoading("Menyimpan penambahan stok...");
             try {
-                let res = await fetch(GAS_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
-                let result = await res.json();
-                if (result.status === "success") {
-                    showToast(result.message);
-                    state.addStockCart = {};
-                    await fetchAppData();
-                } else {
-                    showToast(result.message, true);
+                // 1. Update Stok Barang Lama
+                for (let item of existingItems) {
+                    let targetBarang = state.barang.find(b => b.id === item.id);
+                    if (targetBarang) {
+                        let newStok = targetBarang.stok + item.addQty;
+                        await supabaseClient
+                            .from('barang')
+                            .update({ stok: newStok })
+                            .eq('id_barang', item.id);
+                    }
                 }
+
+                // 2. Tambah Barang Baru
+                if (hasNewItem) {
+                    let prefix = "A";
+                    if (newItemSumber === "Akun Belanja Persediaan") prefix = "B";
+                    else if (newItemSumber === "Akun Belanja Media Pembelajaran") prefix = "C";
+
+                    let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
+                    let newSeq = countPrefix + 1;
+                    let formattedSeq = newSeq < 10 ? ("0" + newSeq) : String(newSeq);
+                    let newIdBarang = prefix + "-" + formattedSeq;
+
+                    await supabaseClient.from('barang').insert([{
+                        id_barang: newIdBarang,
+                        sumber_perolehan: newItemSumber,
+                        kategori: newItemKategori,
+                        nama_barang: newItemNama,
+                        stok: newItemStok,
+                        hanya_pinjam: newItemHanyaPinjam
+                    }]);
+                }
+
+                showToast("Penambahan stok berhasil disimpan!");
+                state.addStockCart = {};
+                await fetchAppData();
             } catch(err) {
-                showToast("Gagal menyimpan data penambahan stok.", true);
+                console.error(err);
+                showToast("Gagal menyimpan penambahan stok.", true);
             } finally {
                 hideLoading();
             }
@@ -949,41 +995,64 @@
                 }
             }
 
-            let payload = {
-                action: "submitTransaction",
-                payload: {
-                    jenis: pendingJenis,
-                    user: { nip: state.user.nip, nama: state.user.nama },
-                    items: itemsPayload
-                }
-            };
-
             showLoading("Memproses Transaksi...");
             try {
-                let res = await fetch(GAS_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
-                let result = await res.json();
-                if (result.status === "success") {
-                    showToast(result.message);
-                    state.cart = {};
-                    await fetchAppData();
-                } else {
-                    showToast(result.message, true);
+                const now = new Date();
+                const year = String(now.getFullYear()).slice(-2);
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const datePrefix = year + month + day;
+
+                // Hitung urutan transaksi hari ini
+                const { count } = await supabaseClient
+                    .from('transaksi')
+                    .select('*', { count: 'exact', head: true })
+                    .like('id_transaksi', `${datePrefix}%`);
+
+                const seq = (count || 0) + 1;
+                const customTrxId = `${datePrefix}${seq}`;
+                const statusTrx = (pendingJenis === "Ambil") ? "Selesai" : "Belum kembali";
+
+                for (let itm of itemsPayload) {
+                    let targetBarang = state.barang.find(b => b.id === itm.id);
+                    if (targetBarang) {
+                        // Potong Stok
+                        let newStok = targetBarang.stok - itm.jumlah;
+                        await supabaseClient
+                            .from('barang')
+                            .update({ stok: newStok })
+                            .eq('id_barang', itm.id);
+
+                        // Catat Transaksi
+                        await supabaseClient.from('transaksi').insert([{
+                            id_transaksi: customTrxId,
+                            nip: state.user.nip,
+                            nama_pengguna: state.user.nama,
+                            id_barang: itm.id,
+                            nama_barang: targetBarang.nama,
+                            jumlah: itm.jumlah,
+                            jenis_transaksi: pendingJenis,
+                            status: statusTrx
+                        }]);
+                    }
                 }
+
+                showToast(`Transaksi berhasil diproses dengan ID: #${customTrxId}`);
+                state.cart = {};
+                await fetchAppData();
             } catch (err) {
-                showToast("Gagal terhubung ke server.", true);
+                console.error(err);
+                showToast("Gagal memproses transaksi.", true);
             } finally {
                 hideLoading();
             }
         }
 
-        let activeReturnRow = null;
+        let activeReturnTrxId = null;
         let maxReturnQty = 0;
 
-        function openReturnModal(rowIdx, namaBarang, maxQty) {
-            activeReturnRow = rowIdx;
+        function openReturnModal(idTrx, namaBarang, maxQty) {
+            activeReturnTrxId = idTrx;
             maxReturnQty = maxQty;
             document.getElementById('returnItemInfo').innerText = `Barang: ${namaBarang} (Maks. ${maxQty} unit)`;
             document.getElementById('returnQtyInput').value = maxQty;
@@ -1007,25 +1076,41 @@
             closeReturnModal();
             showLoading("Memproses Pengembalian...");
             try {
-                let res = await fetch(GAS_URL, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        action: "returnItem",
-                        payload: {
-                            rowIdx: activeReturnRow,
-                            returnQty: qty,
-                            user: { nip: state.user.nip, nama: state.user.nama, isAdmin: state.user.isAdmin }
-                        }
-                    })
-                });
-                let result = await res.json();
-                if (result.status === "success") {
-                    showToast(result.message);
-                    await fetchAppData();
+                let trxObj = state.transaksi.find(t => t.idTransaksi === activeReturnTrxId);
+                if (!trxObj) throw new Error("Transaksi tidak ditemukan.");
+
+                const now = new Date();
+                const timestampStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                
+                let newStatus = "";
+                if (qty === trxObj.jumlah) {
+                    newStatus = state.user.isAdmin ? 
+                        `Dikembalikan oleh Admin (${state.user.nama}) pada tanggal ${timestampStr}` : 
+                        `Dikembalikan oleh peminjam pada tanggal ${timestampStr}`;
                 } else {
-                    showToast(result.message, true);
+                    newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}`;
                 }
+
+                // Update Status Transaksi
+                await supabaseClient
+                    .from('transaksi')
+                    .update({ status: newStatus })
+                    .eq('id_transaksi', activeReturnTrxId);
+
+                // Tambah kembali stok barang
+                let targetBarang = state.barang.find(b => b.id === trxObj.idBarang);
+                if (targetBarang) {
+                    let updatedStok = targetBarang.stok + qty;
+                    await supabaseClient
+                        .from('barang')
+                        .update({ stok: updatedStok })
+                        .eq('id_barang', trxObj.idBarang);
+                }
+
+                showToast("Pengembalian barang berhasil dicatat!");
+                await fetchAppData();
             } catch(err) {
+                console.error(err);
                 showToast("Gagal memproses pengembalian.", true);
             } finally {
                 hideLoading();
