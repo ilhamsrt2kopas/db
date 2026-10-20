@@ -95,7 +95,7 @@
             transaksi: [],
             cart: {}, 
             addStockCart: {}, 
-            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ], 
+            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ], 
             activeTab: 'dashboard',
             barangSubmenuOpen: true,
             searchQuery: '',
@@ -770,9 +770,9 @@
                                             <div>
                                                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
                                                 <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                    <option value="Akun Belanja ATK" ${item.sumber === 'Akun Belanja ATK' ? 'selected' : ''}>Akun Belanja ATK (A)</option>
-                                                    <option value="Akun Belanja Persediaan" ${item.sumber === 'Akun Belanja Persediaan' ? 'selected' : ''}>Akun Belanja Persediaan (B)</option>
-                                                    <option value="Akun Belanja Media Pembelajaran" ${item.sumber === 'Akun Belanja Media Pembelajaran' ? 'selected' : ''}>Akun Belanja Media Pembelajaran (C)</option>
+                                                    <option value="Perkantoran" ${item.sumber === 'Perkantoran' ? 'selected' : ''}>Perkantoran (A)</option>
+                                                    <option value="Persediaan" ${item.sumber === 'Persediaan' ? 'selected' : ''}>Persediaan (B)</option>
+                                                    <option value="Media Pembelajaran" ${item.sumber === 'Media Pembelajaran' ? 'selected' : ''}>Media Pembelajaran (C)</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -838,7 +838,7 @@
         }
 
         function addNewItemRow() {
-            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
+            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false });
             renderTambahStokContent();
             setTimeout(() => {
                 let newIdx = state.newItemList.length - 1;
@@ -910,8 +910,8 @@
                     let insertPayload = [];
                     for (let newItem of validNewItems) {
                         let prefix = "A";
-                        if (newItem.sumber === "Akun Belanja Persediaan") prefix = "B";
-                        else if (newItem.sumber === "Akun Belanja Media Pembelajaran") prefix = "C";
+                        if (newItem.sumber === "Persediaan") prefix = "B";
+                        else if (newItem.sumber === "Media Pembelajaran") prefix = "C";
 
                         let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
                         let newSeq = countPrefix + 1;
@@ -935,7 +935,7 @@
 
                 showToast("Penambahan stok dan item baru berhasil disimpan!");
                 state.addStockCart = {};
-                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ];
+                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ];
                 await fetchAppData();
             } catch(err) {
                 console.error(err);
