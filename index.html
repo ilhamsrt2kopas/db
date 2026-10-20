@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Administrasi Sekolah Rakyat</title>
+    <title>Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f97316">
@@ -95,6 +95,7 @@
             transaksi: [],
             cart: {}, 
             addStockCart: {}, 
+            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ], // Array Tambah Item Dinamis
             activeTab: 'dashboard',
             barangSubmenuOpen: true,
             searchQuery: '',
@@ -198,10 +199,10 @@
                     <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-md w-full border border-slate-100">
                         <div class="text-center mb-8">
                             <div class="w-16 h-16 sm:w-20 sm:h-20 bg-orange-500 text-white rounded-2xl mx-auto flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-lg shadow-orange-500/30 mb-4">
-                                <i class="fa-solid fa-school"></i>
+                                <i class="fa-solid fa-graduation-cap"></i>
                             </div>
-                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Sekolah Rakyat</h1>
-                            <p class="text-xs sm:text-sm text-slate-500 mt-1">Sistem Administrasi Peminjaman & Pengambilan Barang</p>
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Sekolah Rakyat Terintegrasi 2</h1>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-1">Kota Pasuruan</p>
                         </div>
                         <form onsubmit="handleLogin(event)" class="space-y-4">
                             <div>
@@ -286,12 +287,16 @@
         function renderMainLayout() {
             return `
                 <div class="flex flex-col md:flex-row h-screen overflow-hidden">
+                    <!-- Mobile Top Bar -->
                     <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between md:hidden z-30 shrink-0">
                         <div class="flex items-center gap-2.5">
                             <div class="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
-                                <i class="fa-solid fa-school"></i>
+                                <i class="fa-solid fa-graduation-cap"></i>
                             </div>
-                            <h2 class="font-bold text-slate-900 text-sm">Sekolah Rakyat</h2>
+                            <div>
+                                <h2 class="font-bold text-slate-900 text-xs">Sekolah Rakyat Terintegrasi 2</h2>
+                                <p class="text-[10px] text-orange-600 font-semibold">Kota Pasuruan</p>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="fetchAppData()" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>
@@ -299,17 +304,18 @@
                         </div>
                     </header>
 
+                    <!-- Mobile Drawer Overlay -->
                     ${state.mobileMenuOpen ? `
                         <div class="fixed inset-0 bg-black/50 z-40 md:hidden flex justify-end" onclick="toggleMobileMenu()">
                             <div class="w-72 bg-slate-900 text-slate-300 h-full flex flex-col p-5 shadow-2xl" onclick="event.stopPropagation()">
                                 <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
                                     <div class="flex items-center gap-3">
                                         <div class="w-9 h-9 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold">
-                                            <i class="fa-solid fa-school"></i>
+                                            <i class="fa-solid fa-graduation-cap"></i>
                                         </div>
                                         <div>
-                                            <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
-                                            <p class="text-[11px] text-orange-400">Admin Panel</p>
+                                            <h2 class="font-bold text-white text-xs">Sekolah Rakyat Terintegrasi 2</h2>
+                                            <p class="text-[11px] text-orange-400">Kota Pasuruan</p>
                                         </div>
                                     </div>
                                     <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -355,14 +361,15 @@
                         </div>
                     ` : ''}
 
+                    <!-- Desktop Sidebar -->
                     <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col border-r border-slate-800 shrink-0">
                         <div class="p-6 border-b border-slate-800 flex items-center gap-3">
                             <div class="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold shadow-md shadow-orange-500/20">
-                                <i class="fa-solid fa-school"></i>
+                                <i class="fa-solid fa-graduation-cap"></i>
                             </div>
                             <div>
-                                <h2 class="font-bold text-white text-sm">Sekolah Rakyat</h2>
-                                <p class="text-xs text-orange-400">Admin Panel</p>
+                                <h2 class="font-bold text-white text-xs leading-tight">Sekolah Rakyat Terintegrasi 2</h2>
+                                <p class="text-xs text-orange-400 mt-0.5">Kota Pasuruan</p>
                             </div>
                         </div>
                         <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -671,6 +678,7 @@
             `;
         }
 
+        // MODUL TAMBAH STOK BARANG & MULTI ITEM BARU
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
             const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
@@ -683,13 +691,14 @@
                                 <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                                     <i class="fa-solid fa-boxes-packing text-orange-500"></i> Modul Tambah Stok Barang
                                 </h3>
-                                <p class="text-xs text-slate-500 mt-1">Tambahkan jumlah stok untuk barang yang sudah ada atau daftarkan item barang baru.</p>
+                                <p class="text-xs text-slate-500 mt-1">Tambahkan jumlah stok untuk barang yang ada atau daftarkan beberapa item barang baru sekaligus.</p>
                             </div>
                             <button onclick="submitAddStock()" class="w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-floppy-disk"></i> Simpan Penambahan Stok
                             </button>
                         </div>
 
+                        <!-- 1. BARANG LAMA -->
                         <div class="space-y-6 mb-8">
                             <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Tambah Stok Barang Yang Sudah Ada</h4>
                             ${categories.map(cat => {
@@ -725,50 +734,86 @@
                             }).join('')}
                         </div>
 
-                        <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6">
-                            <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru (Opsional)
-                            </h4>
-                            <p class="text-xs text-slate-500 mb-4">Isi formulir ini hanya jika Anda ingin menambahkan barang jenis baru yang belum terdaftar di atas.</p>
-                            
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div class="sm:col-span-2 lg:col-span-1">
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Barang Baru</label>
-                                    <input type="text" id="newItemNama" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Proyektor Portable">
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
-                                    <select id="newItemKategori" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                        <option value="ATK">ATK</option>
-                                        <option value="Alat Elektronik">Alat Elektronik</option>
-                                        <option value="Konsumsi">Konsumsi</option>
-                                        <option value="Kendaraan">Kendaraan</option>
-                                        <option value="Alat Olahraga">Alat Olahraga</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
-                                    <select id="newItemSumber" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                        <option value="Akun Belanja ATK">Akun Belanja ATK (Prefix A)</option>
-                                        <option value="Akun Belanja Persediaan">Akun Belanja Persediaan (Prefix B)</option>
-                                        <option value="Akun Belanja Media Pembelajaran">Akun Belanja Media Pembelajaran (Prefix C)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Stok Awal</label>
-                                    <input type="number" id="newItemStok" min="0" value="0" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                </div>
-                                <div class="flex items-center pt-4">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="newItemHanyaPinjam" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-slate-300">
-                                        <span class="text-xs font-semibold text-slate-700">Barang "Hanya Pinjam"</span>
-                                    </label>
-                                </div>
+                        <!-- 2. TAMBAH ITEM BARU (OPSIONAL) DENGAN FITUR "TAMBAH LAGI" -->
+                        <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru (Opsional)
+                                </h4>
+                            </div>
+                            <p class="text-xs text-slate-500">Isi formulir ini jika Anda ingin mendaftarkan barang baru. Anda dapat menambah lebih dari satu barang sekaligus.</p>
+
+                            <div id="newItemContainer" class="space-y-4">
+                                ${state.newItemList.map((item, idx) => `
+                                    <div class="bg-white p-4 rounded-xl border border-orange-100 relative shadow-sm">
+                                        ${state.newItemList.length > 1 ? `
+                                            <button onclick="removeNewItemRow(${idx})" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1 text-xs font-bold" title="Hapus Baris Ini">
+                                                <i class="fa-solid fa-xmark text-sm"></i>
+                                            </button>
+                                        ` : ''}
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <div class="sm:col-span-2 lg:col-span-1">
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Barang Baru #${idx + 1}</label>
+                                                <input type="text" onchange="updateNewItemData(${idx}, 'nama', this.value)" value="${item.nama}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Proyektor Portable">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
+                                                <select onchange="updateNewItemData(${idx}, 'kategori', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                    <option value="ATK" ${item.kategori === 'ATK' ? 'selected' : ''}>ATK</option>
+                                                    <option value="Alat Elektronik" ${item.kategori === 'Alat Elektronik' ? 'selected' : ''}>Alat Elektronik</option>
+                                                    <option value="Konsumsi" ${item.kategori === 'Konsumsi' ? 'selected' : ''}>Konsumsi</option>
+                                                    <option value="Kendaraan" ${item.kategori === 'Kendaraan' ? 'selected' : ''}>Kendaraan</option>
+                                                    <option value="Alat Olahraga" ${item.kategori === 'Alat Olahraga' ? 'selected' : ''}>Alat Olahraga</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
+                                                <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                    <option value="Akun Belanja ATK" ${item.sumber === 'Akun Belanja ATK' ? 'selected' : ''}>Akun Belanja ATK (A)</option>
+                                                    <option value="Akun Belanja Persediaan" ${item.sumber === 'Akun Belanja Persediaan' ? 'selected' : ''}>Akun Belanja Persediaan (B)</option>
+                                                    <option value="Akun Belanja Media Pembelajaran" ${item.sumber === 'Akun Belanja Media Pembelajaran' ? 'selected' : ''}>Akun Belanja Media Pembelajaran (C)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Stok Awal</label>
+                                                <input type="number" min="0" onchange="updateNewItemData(${idx}, 'stok', this.value)" value="${item.stok}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                            </div>
+                                            <div class="flex items-center pt-3">
+                                                <label class="flex items-center gap-2 cursor-pointer">
+                                                    <input type="checkbox" onchange="updateNewItemData(${idx}, 'hanyaPinjam', this.checked)" ${item.hanyaPinjam ? 'checked' : ''} class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-slate-300">
+                                                    <span class="text-xs font-semibold text-slate-700">Barang "Hanya Pinjam"</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <!-- TOMBOL "TAMBAH LAGI" -->
+                            <div class="pt-2">
+                                <button onclick="addNewItemRow()" class="w-full py-2.5 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 text-orange-600 font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> Tambah Lagi Item Baru
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
+        }
+
+        function addNewItemRow() {
+            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
+            renderTambahStokContent();
+        }
+
+        function removeNewItemRow(idx) {
+            state.newItemList.splice(idx, 1);
+            renderTambahStokContent();
+        }
+
+        function updateNewItemData(idx, field, val) {
+            if (field === 'stok') val = parseInt(val) || 0;
+            state.newItemList[idx][field] = val;
         }
 
         function updateAddStockCart(id, delta) {
@@ -793,16 +838,10 @@
                 }
             }
 
-            let newItemNama = document.getElementById('newItemNama') ? document.getElementById('newItemNama').value.trim() : '';
-            let newItemKategori = document.getElementById('newItemKategori') ? document.getElementById('newItemKategori').value : '';
-            let newItemSumber = document.getElementById('newItemSumber') ? document.getElementById('newItemSumber').value : '';
-            let newItemStok = document.getElementById('newItemStok') ? parseInt(document.getElementById('newItemStok').value) : 0;
-            let newItemHanyaPinjam = document.getElementById('newItemHanyaPinjam') ? document.getElementById('newItemHanyaPinjam').checked : false;
+            let validNewItems = state.newItemList.filter(item => item.nama && item.nama.trim() !== '');
 
-            let hasNewItem = newItemNama !== '';
-
-            if (existingItems.length === 0 && !hasNewItem) {
-                showToast("Isi penambahan stok atau daftarkan barang baru!", true);
+            if (existingItems.length === 0 && validNewItems.length === 0) {
+                showToast("Isi penambahan stok atau lengkapi nama barang baru!", true);
                 return;
             }
 
@@ -820,29 +859,38 @@
                     }
                 }
 
-                // 2. Tambah Barang Baru
-                if (hasNewItem) {
-                    let prefix = "A";
-                    if (newItemSumber === "Akun Belanja Persediaan") prefix = "B";
-                    else if (newItemSumber === "Akun Belanja Media Pembelajaran") prefix = "C";
+                // 2. Tambah Banyak Barang Baru Sekaligus
+                if (validNewItems.length > 0) {
+                    let insertPayload = [];
+                    for (let newItem of validNewItems) {
+                        let prefix = "A";
+                        if (newItem.sumber === "Akun Belanja Persediaan") prefix = "B";
+                        else if (newItem.sumber === "Akun Belanja Media Pembelajaran") prefix = "C";
 
-                    let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
-                    let newSeq = countPrefix + 1;
-                    let formattedSeq = newSeq < 10 ? ("0" + newSeq) : String(newSeq);
-                    let newIdBarang = prefix + "-" + formattedSeq;
+                        let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
+                        let newSeq = countPrefix + 1;
+                        let formattedSeq = newSeq < 10 ? ("0" + newSeq) : String(newSeq);
+                        let newIdBarang = prefix + "-" + formattedSeq;
 
-                    await supabaseClient.from('barang').insert([{
-                        id_barang: newIdBarang,
-                        sumber_perolehan: newItemSumber,
-                        kategori: newItemKategori,
-                        nama_barang: newItemNama,
-                        stok: newItemStok,
-                        hanya_pinjam: newItemHanyaPinjam
-                    }]);
+                        insertPayload.push({
+                            id_barang: newIdBarang,
+                            sumber_perolehan: newItem.sumber,
+                            kategori: newItem.kategori,
+                            nama_barang: newItem.nama.trim(),
+                            stok: newItem.stok,
+                            hanya_pinjam: newItem.hanyaPinjam
+                        });
+
+                        // Tambah virtual stok agar ID urut berikutnya presisi
+                        state.barang.push({ id: newIdBarang, nama: newItem.nama });
+                    }
+
+                    await supabaseClient.from('barang').insert(insertPayload);
                 }
 
-                showToast("Penambahan stok berhasil disimpan!");
+                showToast("Penambahan stok dan item baru berhasil disimpan!");
                 state.addStockCart = {};
+                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ];
                 await fetchAppData();
             } catch(err) {
                 console.error(err);
@@ -1003,7 +1051,6 @@
                 const day = String(now.getDate()).padStart(2, '0');
                 const datePrefix = year + month + day;
 
-                // Hitung urutan transaksi hari ini
                 const { count } = await supabaseClient
                     .from('transaksi')
                     .select('*', { count: 'exact', head: true })
@@ -1016,14 +1063,12 @@
                 for (let itm of itemsPayload) {
                     let targetBarang = state.barang.find(b => b.id === itm.id);
                     if (targetBarang) {
-                        // Potong Stok
                         let newStok = targetBarang.stok - itm.jumlah;
                         await supabaseClient
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', itm.id);
 
-                        // Catat Transaksi
                         await supabaseClient.from('transaksi').insert([{
                             id_transaksi: customTrxId,
                             nip: state.user.nip,
@@ -1091,13 +1136,11 @@
                     newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}`;
                 }
 
-                // Update Status Transaksi
                 await supabaseClient
                     .from('transaksi')
                     .update({ status: newStatus })
                     .eq('id_transaksi', activeReturnTrxId);
 
-                // Tambah kembali stok barang
                 let targetBarang = state.barang.find(b => b.id === trxObj.idBarang);
                 if (targetBarang) {
                     let updatedStok = targetBarang.stok + qty;
