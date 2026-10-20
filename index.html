@@ -208,6 +208,8 @@
                     renderBarangContent();
                 } else if (state.activeTab === 'tambahstok') {
                     renderTambahStokContent();
+                } else if (state.activeTab === 'pengembalian') {
+                    renderPengembalianContent();
                 } else if (state.activeTab === 'gantipassword') {
                     renderPasswordContent();
                 }
@@ -241,7 +243,7 @@
                                 </div>
                             </div>
                             <button type="submit" class="w-full py-3.5 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem
+                                <i class="fa-solid fa-right-from-bracket"></i> Masuk Sistem
                             </button>
                         </form>
                     </div>
@@ -364,6 +366,9 @@
                                                         Tambah Stok Barang
                                                     </button>
                                                 ` : ''}
+                                                <button onclick="switchTab('pengembalian'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'pengembalian' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                                    Pengembalian Barang Pinjaman
+                                                </button>
                                             </div>
                                         ` : ''}
                                     </div>
@@ -415,6 +420,9 @@
                                                 Tambah Stok Barang
                                             </button>
                                         ` : ''}
+                                        <button onclick="switchTab('pengembalian')" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === 'pengembalian' ? 'bg-orange-500/20 text-orange-400 font-bold' : 'text-slate-400 hover:text-white'}">
+                                            Pengembalian Barang Pinjaman
+                                        </button>
                                     </div>
                                 ` : ''}
                             </div>
@@ -439,7 +447,8 @@
                             <div class="flex items-center gap-4">
                                 <h1 class="text-lg font-bold text-slate-800 capitalize">${
                                     state.activeTab === 'gantipassword' ? 'Ganti Password' : 
-                                    state.activeTab === 'tambahstok' ? 'Tambah Stok Barang' : state.activeTab
+                                    state.activeTab === 'tambahstok' ? 'Tambah Stok Barang' : 
+                                    state.activeTab === 'pengembalian' ? 'Pengembalian Barang Pinjaman' : state.activeTab
                                 }</h1>
                             </div>
                             <div class="flex items-center gap-3">
@@ -606,11 +615,6 @@
             const main = document.getElementById('mainContent');
             let hasPinjamInCart = isHanyaPinjamInCart();
             let filteredBarang = getFilteredBarang();
-            let activeLoans = state.transaksi.filter(t => {
-                let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
-                let isUnreturned = t.jenis === 'Pinjam' && !t.status.includes('Dikembalikan');
-                return isMyLoan && isUnreturned;
-            });
 
             const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
@@ -659,49 +663,61 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            `;
+        }
 
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
-                        <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-arrow-rotate-left text-green-600"></i> Pengembalian Barang Pinjaman
-                        </h3>
-                        <div class="overflow-x-auto">
-                            ${activeLoans.length === 0 ? '<p class="text-xs sm:text-sm text-slate-400 text-center py-6">Tidak ada barang pinjaman aktif yang perlu dikembalikan.</p>' : `
-                                <table class="w-full text-left border-collapse text-xs sm:text-sm">
-                                    <thead>
-                                        <tr class="bg-slate-50 border-b border-slate-200 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                            <th class="p-2.5 sm:p-3">ID Trx</th>
-                                            <th class="p-2.5 sm:p-3">Peminjam</th>
-                                            <th class="p-2.5 sm:p-3">Barang</th>
-                                            <th class="p-2.5 sm:p-3">Jml</th>
-                                            <th class="p-2.5 sm:p-3">Status</th>
-                                            <th class="p-2.5 sm:p-3 text-center">Aksi</th>
+        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN
+        function renderPengembalianContent() {
+            const main = document.getElementById('mainContent');
+            let activeLoans = state.transaksi.filter(t => {
+                let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
+                let isUnreturned = t.jenis === 'Pinjam' && !t.status.includes('Dikembalikan');
+                return isMyLoan && isUnreturned;
+            });
+
+            main.innerHTML = `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+                    <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-rotate-left text-green-600"></i> Pengembalian Barang Pinjaman
+                    </h3>
+                    <div class="overflow-x-auto">
+                        ${activeLoans.length === 0 ? '<p class="text-xs sm:text-sm text-slate-400 text-center py-6">Tidak ada barang pinjaman aktif yang perlu dikembalikan.</p>' : `
+                            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="p-2.5 sm:p-3">ID Trx</th>
+                                        <th class="p-2.5 sm:p-3">Peminjam</th>
+                                        <th class="p-2.5 sm:p-3">Barang</th>
+                                        <th class="p-2.5 sm:p-3">Jml</th>
+                                        <th class="p-2.5 sm:p-3">Status</th>
+                                        <th class="p-2.5 sm:p-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${activeLoans.map(t => `
+                                        <tr class="hover:bg-slate-50/50 transition">
+                                            <td class="p-2.5 sm:p-3 font-mono text-[11px] font-bold text-slate-500">#${t.idTransaksi}</td>
+                                            <td class="p-2.5 sm:p-3 truncate max-w-[100px]">${t.namaPengguna}</td>
+                                            <td class="p-2.5 sm:p-3 font-medium text-slate-800">${t.namaBarang}</td>
+                                            <td class="p-2.5 sm:p-3 font-semibold text-slate-700">${t.jumlah}</td>
+                                            <td class="p-2.5 sm:p-3"><span class="px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-amber-50 text-amber-600">${t.status}</span></td>
+                                            <td class="p-2.5 sm:p-3 text-center">
+                                                <button onclick="openReturnModal('${t.idTransaksi}', '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-medium transition shadow">
+                                                    Kembalikan
+                                                </button>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100">
-                                        ${activeLoans.map(t => `
-                                            <tr class="hover:bg-slate-50/50 transition">
-                                                <td class="p-2.5 sm:p-3 font-mono text-[11px] font-bold text-slate-500">#${t.idTransaksi}</td>
-                                                <td class="p-2.5 sm:p-3 truncate max-w-[100px]">${t.namaPengguna}</td>
-                                                <td class="p-2.5 sm:p-3 font-medium text-slate-800">${t.namaBarang}</td>
-                                                <td class="p-2.5 sm:p-3 font-semibold text-slate-700">${t.jumlah}</td>
-                                                <td class="p-2.5 sm:p-3"><span class="px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-amber-50 text-amber-600">${t.status}</span></td>
-                                                <td class="p-2.5 sm:p-3 text-center">
-                                                    <button onclick="openReturnModal('${t.idTransaksi}', '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] sm:text-xs font-medium transition shadow">
-                                                        Kembalikan
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            `}
-                        </div>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
                     </div>
                 </div>
             `;
         }
 
-        // MODUL TAMBAH STOK BARANG DENGAN DUAL OPTION (TAB KEY ATAU TOMBOL MOBILE)
+        // MODUL TAMBAH STOK BARANG
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
             const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
@@ -714,55 +730,19 @@
                                 <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                                     <i class="fa-solid fa-boxes-packing text-orange-500"></i> Modul Tambah Stok Barang
                                 </h3>
-                                <p class="text-xs text-slate-500 mt-1">Tambahkan jumlah stok untuk barang yang ada atau daftarkan beberapa item barang baru sekaligus.</p>
+                                <p class="text-xs text-slate-500 mt-1">Daftarkan beberapa item barang baru atau tambahkan jumlah stok untuk barang yang sudah ada.</p>
                             </div>
                             <button onclick="submitAddStock()" class="w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-floppy-disk"></i> Simpan Penambahan Stok
                             </button>
                         </div>
 
-                        <!-- 1. BARANG LAMA -->
-                        <div class="space-y-6 mb-8">
-                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Tambah Stok Barang Yang Sudah Ada</h4>
-                            ${categories.map(cat => {
-                                let itemsInCat = state.barang.filter(b => b.kategori === cat);
-                                if (itemsInCat.length === 0) return '';
-                                return `
-                                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                                        <div class="bg-slate-100 px-4 py-2.5 border-b border-slate-200 font-bold text-xs text-slate-700 flex justify-between items-center">
-                                            <span><i class="fa-solid fa-folder text-orange-500 mr-2"></i>Kategori: ${cat}</span>
-                                            <span class="text-[11px] font-normal text-slate-500">${itemsInCat.length} Item</span>
-                                        </div>
-                                        <div class="divide-y divide-slate-100">
-                                            ${itemsInCat.map(b => {
-                                                let addQty = state.addStockCart[b.id] || 0;
-                                                return `
-                                                    <div class="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition">
-                                                        <div>
-                                                            <p class="font-medium text-slate-800 text-xs sm:text-sm">${b.nama}</p>
-                                                            <p class="text-[11px] text-slate-400 mt-0.5">Stok Saat Ini: <span class="font-bold text-slate-700">${b.stok}</span> | Sumber: ${b.sumberPerolehan}</p>
-                                                        </div>
-                                                        <div class="flex items-center gap-2 self-end sm:self-center">
-                                                            <span class="text-xs text-slate-500 font-medium">Tambah:</span>
-                                                            <button onclick="updateAddStockCart('${b.id}', -1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-minus text-[10px]"></i></button>
-                                                            <input type="number" min="0" value="${addQty}" oninput="manualInputAddStockCart('${b.id}', this.value)" class="w-16 text-center font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                            <button onclick="updateAddStockCart('${b.id}', 1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-plus text-[10px]"></i></button>
-                                                        </div>
-                                                    </div>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-
-                        <!-- 2. TAMBAH ITEM BARU (OPSIONAL) DENGAN DUKUNGAN MOBILE & TAB -->
-                        <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6 space-y-4">
+                        <!-- 1. TAMBAH ITEM BARU (DI ATAS) -->
+                        <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6 space-y-4 mb-8">
                             <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru
+                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 1. Tambah Item Barang Baru
                             </h4>
-                            <p class="text-xs text-slate-500">Isi formulir ini untuk mendaftarkan barang baru. Di komputer, tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">TAB</kbd> di akhir baris, atau gunakan tombol **"+ Tambah Baris"** di bawah khusus pengguna smartphone.</p>
+                            <p class="text-xs text-slate-500">Isi formulir ini untuk mendaftarkan barang baru. Di komputer, tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">TAB</kbd> di akhir baris, atau gunakan tombol <strong>"+ Tambah Baris Baru"</strong> di bawah khusus pengguna smartphone.</p>
 
                             <div id="newItemContainer" class="space-y-4">
                                 ${state.newItemList.map((item, idx) => `
@@ -810,12 +790,47 @@
                                 `).join('')}
                             </div>
 
-                            <!-- TOMBOL TAMBAH BARIS KHUSUS SMARTPHONE & USER FRIENDLY -->
                             <div class="pt-2">
                                 <button onclick="addNewItemRow()" class="w-full py-2.5 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 text-orange-600 font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
                                     <i class="fa-solid fa-plus"></i> Tambah Baris Baru
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- 2. TAMBAH STOK BARANG YANG SUDAH ADA (DI BAWAH) -->
+                        <div class="space-y-6">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">2. Tambah Stok Barang Yang Sudah Ada</h4>
+                            ${categories.map(cat => {
+                                let itemsInCat = state.barang.filter(b => b.kategori === cat);
+                                if (itemsInCat.length === 0) return '';
+                                return `
+                                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                                        <div class="bg-slate-100 px-4 py-2.5 border-b border-slate-200 font-bold text-xs text-slate-700 flex justify-between items-center">
+                                            <span><i class="fa-solid fa-folder text-orange-500 mr-2"></i>Kategori: ${cat}</span>
+                                            <span class="text-[11px] font-normal text-slate-500">${itemsInCat.length} Item</span>
+                                        </div>
+                                        <div class="divide-y divide-slate-100">
+                                            ${itemsInCat.map(b => {
+                                                let addQty = state.addStockCart[b.id] || 0;
+                                                return `
+                                                    <div class="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition">
+                                                        <div>
+                                                            <p class="font-medium text-slate-800 text-xs sm:text-sm">${b.nama}</p>
+                                                            <p class="text-[11px] text-slate-400 mt-0.5">Stok Saat Ini: <span class="font-bold text-slate-700">${b.stok}</span> | Sumber: ${b.sumberPerolehan}</p>
+                                                        </div>
+                                                        <div class="flex items-center gap-2 self-end sm:self-center">
+                                                            <span class="text-xs text-slate-500 font-medium">Tambah:</span>
+                                                            <button onclick="updateAddStockCart('${b.id}', -1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                                                            <input type="number" min="0" value="${addQty}" oninput="manualInputAddStockCart('${b.id}', this.value)" class="w-16 text-center font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                            <button onclick="updateAddStockCart('${b.id}', 1)" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition shrink-0"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
