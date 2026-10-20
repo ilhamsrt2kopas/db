@@ -233,7 +233,7 @@
                                 </div>
                             </div>
                             <button type="submit" class="w-full py-3.5 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-right-from-bracket"></i> Masuk Sistem
+                                <i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem
                             </button>
                         </form>
                     </div>
@@ -657,7 +657,7 @@
             `;
         }
 
-        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN (PERBAIKAN AGAR PEMINJAMAN SELALU MUNCUL)
+        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN
         function renderPengembalianContent() {
             const main = document.getElementById('mainContent');
             
@@ -709,7 +709,7 @@
             `;
         }
 
-        // MODUL TAMBAH STOK BARANG DENGAN PENCATATAN KE TABEL `masuk`
+        // MODUL TAMBAH STOK BARANG
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
             const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
@@ -870,7 +870,6 @@
             state.addStockCart[id] = num;
         }
 
-        // FUNGSI SUBMIT DENGAN LOG PENAMBAHAN KE TABEL `masuk`
         async function submitAddStock() {
             let existingItems = [];
             for (let id in state.addStockCart) {
@@ -890,7 +889,6 @@
             try {
                 let logMasukPayload = [];
 
-                // 1. Proses Penambahan Barang Lama
                 for (let item of existingItems) {
                     let targetBarang = state.barang.find(b => b.id === item.id);
                     if (targetBarang) {
@@ -903,13 +901,11 @@
                         logMasukPayload.push({
                             id_barang: item.id,
                             nama_barang: targetBarang.nama,
-                            jumlah: item.addQty,
-                            added_at: new Date().toISOString()
+                            jumlah: item.addQty
                         });
                     }
                 }
 
-                // 2. Proses Pendaftaran Barang Baru
                 if (validNewItems.length > 0) {
                     let insertPayload = [];
                     for (let newItem of validNewItems) {
@@ -937,8 +933,7 @@
                             logMasukPayload.push({
                                 id_barang: newIdBarang,
                                 nama_barang: newItem.nama.trim(),
-                                jumlah: newItem.stok,
-                                added_at: new Date().toISOString()
+                                jumlah: newItem.stok
                             });
                         }
                     }
@@ -946,7 +941,6 @@
                     await supabaseClient.from('barang').insert(insertPayload);
                 }
 
-                // 3. Catat Log ke Tabel `masuk`
                 if (logMasukPayload.length > 0) {
                     await supabaseClient.from('masuk').insert(logMasukPayload);
                 }
@@ -1121,7 +1115,9 @@
 
                 const seq = (count || 0) + 1;
                 const customTrxId = `${datePrefix}${seq}`;
-                const statusTrx = (pendingJenis === "Ambil") ? "Selesai" : "Belum kembali";
+                
+                const timestampStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const statusTrx = (pendingJenis === "Ambil") ? `Selesai pada ${timestampStr}` : `Dipinjam pada ${timestampStr}`;
 
                 for (let itm of itemsPayload) {
                     let targetBarang = state.barang.find(b => b.id === itm.id);
