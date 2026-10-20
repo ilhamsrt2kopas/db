@@ -701,7 +701,7 @@
             `;
         }
 
-        // MODUL TAMBAH STOK BARANG DENGAN AUTO-ROW TAB KEY
+        // MODUL TAMBAH STOK BARANG DENGAN DUAL OPTION (TAB KEY ATAU TOMBOL MOBILE)
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
             const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
@@ -757,12 +757,12 @@
                             }).join('')}
                         </div>
 
-                        <!-- 2. TAMBAH ITEM BARU (OPSIONAL) DENGAN TAB AUTO-ROW -->
+                        <!-- 2. TAMBAH ITEM BARU (OPSIONAL) DENGAN DUKUNGAN MOBILE & TAB -->
                         <div class="bg-orange-50/60 border border-orange-200 rounded-2xl p-4 sm:p-6 space-y-4">
                             <h4 class="text-xs font-bold text-orange-800 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru (Tekan TAB di akhir baris untuk menambah baris baru)
+                                <i class="fa-solid fa-circle-plus text-orange-600"></i> 2. Tambah Item Barang Baru
                             </h4>
-                            <p class="text-xs text-slate-500">Isi formulir ini jika Anda ingin mendaftarkan barang baru. Tekan tombol <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">TAB</kbd> pada kolom terakhir untuk langsung memasukkan item berikutnya.</p>
+                            <p class="text-xs text-slate-500">Isi formulir ini untuk mendaftarkan barang baru. Di komputer, tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px]">TAB</kbd> di akhir baris, atau gunakan tombol **"+ Tambah Baris"** di bawah khusus pengguna smartphone.</p>
 
                             <div id="newItemContainer" class="space-y-4">
                                 ${state.newItemList.map((item, idx) => `
@@ -809,23 +809,33 @@
                                     </div>
                                 `).join('')}
                             </div>
+
+                            <!-- TOMBOL TAMBAH BARIS KHUSUS SMARTPHONE & USER FRIENDLY -->
+                            <div class="pt-2">
+                                <button onclick="addNewItemRow()" class="w-full py-2.5 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 text-orange-600 font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> Tambah Baris Baru
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
 
+        function addNewItemRow() {
+            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
+            renderTambahStokContent();
+            setTimeout(() => {
+                let newIdx = state.newItemList.length - 1;
+                let nextInput = document.getElementById(`newItemNama_${newIdx}`);
+                if (nextInput) nextInput.focus();
+            }, 50);
+        }
+
         function handleCheckKeydown(e, idx) {
-            // Jika menekan TAB pada checkbox baris terakhir, otomatis buat baris baru
             if (e.key === 'Tab' && !e.shiftKey && idx === state.newItemList.length - 1) {
                 e.preventDefault();
-                state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
-                renderTambahStokContent();
-                // Fokus otomatis ke input nama baris baru
-                setTimeout(() => {
-                    let nextInput = document.getElementById(`newItemNama_${idx + 1}`);
-                    if (nextInput) nextInput.focus();
-                }, 50);
+                addNewItemRow();
             }
         }
 
