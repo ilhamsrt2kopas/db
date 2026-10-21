@@ -471,7 +471,7 @@
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
-            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
             
             main.innerHTML = `
                 <div class="space-y-6">
@@ -536,7 +536,7 @@
 
         // FUNGSI INISIALISASI MULTI GRAFIK KATEGORI
         function initCategoryCharts() {
-            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
             categories.forEach(cat => {
                 const canvasId = `chart-${cat.replace(/\s+/g, '')}`;
                 const ctx = document.getElementById(canvasId);
@@ -643,7 +643,7 @@
             let hasPinjamInCart = isHanyaPinjamInCart();
             let filteredBarang = getFilteredBarang();
 
-            const categories = ['Semua', 'ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['Semua', 'ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -749,7 +749,7 @@
         // MODUL TAMBAH STOK BARANG
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
-            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -790,7 +790,7 @@
                                                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
                                                 <select onchange="updateNewItemData(${idx}, 'kategori', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
                                                     <option value="ATK" ${item.kategori === 'ATK' ? 'selected' : ''}>ATK</option>
-                                                    <option value="Alat Elektronik" ${item.kategori === 'Alat Elektronik' ? 'selected' : ''}>Alat Elektronik</option>
+                                                    <option value="Elektronik/Listrik" ${item.kategori === 'Elektronik/Listrik' ? 'selected' : ''}>Elektronik/Listrik</option>
                                                     <option value="Konsumsi" ${item.kategori === 'Konsumsi' ? 'selected' : ''}>Konsumsi</option>
                                                     <option value="Kendaraan" ${item.kategori === 'Kendaraan' ? 'selected' : ''}>Kendaraan</option>
                                                     <option value="Alat Olahraga" ${item.kategori === 'Alat Olahraga' ? 'selected' : ''}>Alat Olahraga</option>
