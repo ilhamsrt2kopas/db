@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href=".icons/apple-touch-icon.png">
     
     <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -91,6 +91,18 @@
     </div>
 
     <script>
+        // Kategori resmi sesuai database
+        const CATEGORIES_LIST = [
+            'ATK',
+            'Elektronik/Listrik',
+            'Kebersihan',
+            'Kesehatan',
+            'Konsumsi',
+            'Olahraga',
+            'Lainnya',
+            'Kendaraan'
+        ];
+
         let state = {
             user: JSON.parse(localStorage.getItem('sr_user')) || null,
             barang: [],
@@ -467,11 +479,9 @@
             render();
         }
 
-        // DASHBOARD DIPERBARUI: GRAFIK DIPIFAH PER KATEGORI
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
-            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
             
             main.innerHTML = `
                 <div class="space-y-6">
@@ -503,16 +513,16 @@
                         </div>
                     </div>
 
-                    <!-- Statistik Stok Per Kategori -->
+                    <!-- Statistik Stok Per Kategori Sesuai Database -->
                     <div>
                         <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Per Kategori Barang
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            ${categories.map(cat => {
+                            ${CATEGORIES_LIST.map(cat => {
                                 let itemsInCat = state.barang.filter(b => b.kategori === cat);
                                 if (itemsInCat.length === 0) return '';
-                                const canvasId = `chart-${cat.replace(/\s+/g, '')}`;
+                                const canvasId = `chart-${cat.replace(/[^a-zA-Z0-9]/g, '')}`;
                                 return `
                                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                                         <div class="flex justify-between items-center mb-3">
@@ -534,11 +544,9 @@
             setTimeout(initCategoryCharts, 100);
         }
 
-        // FUNGSI INISIALISASI MULTI GRAFIK KATEGORI
         function initCategoryCharts() {
-            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
-            categories.forEach(cat => {
-                const canvasId = `chart-${cat.replace(/\s+/g, '')}`;
+            CATEGORIES_LIST.forEach(cat => {
+                const canvasId = `chart-${cat.replace(/[^a-zA-Z0-9]/g, '')}`;
                 const ctx = document.getElementById(canvasId);
                 if (!ctx) return;
 
@@ -643,7 +651,7 @@
             let hasPinjamInCart = isHanyaPinjamInCart();
             let filteredBarang = getFilteredBarang();
 
-            const categories = ['Semua', 'ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            const filterCategories = ['Semua', ...CATEGORIES_LIST];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -669,7 +677,7 @@
                                 <input type="text" id="searchInput" oninput="handleSearchInput(this.value)" value="${state.searchQuery}" class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Cari nama, ID, kategori...">
                             </div>
                             <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 no-scrollbar">
-                                ${categories.map(cat => `
+                                ${filterCategories.map(cat => `
                                     <button onclick="filterCategory('${cat}')" class="px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap transition ${state.selectedCategory === cat ? 'bg-orange-500 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">${cat}</button>
                                 `).join('')}
                             </div>
@@ -694,7 +702,6 @@
             `;
         }
 
-        // SUBMENU KHUSUS PENGEMBALIAN BARANG PINJAMAN
         function renderPengembalianContent() {
             const main = document.getElementById('mainContent');
             
@@ -746,10 +753,8 @@
             `;
         }
 
-        // MODUL TAMBAH STOK BARANG
         function renderTambahStokContent() {
             const main = document.getElementById('mainContent');
-            const categories = ['ATK', 'Elektronik/Listrik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
 
             main.innerHTML = `
                 <div class="space-y-6">
@@ -789,11 +794,7 @@
                                             <div>
                                                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
                                                 <select onchange="updateNewItemData(${idx}, 'kategori', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                    <option value="ATK" ${item.kategori === 'ATK' ? 'selected' : ''}>ATK</option>
-                                                    <option value="Elektronik/Listrik" ${item.kategori === 'Elektronik/Listrik' ? 'selected' : ''}>Elektronik/Listrik</option>
-                                                    <option value="Konsumsi" ${item.kategori === 'Konsumsi' ? 'selected' : ''}>Konsumsi</option>
-                                                    <option value="Kendaraan" ${item.kategori === 'Kendaraan' ? 'selected' : ''}>Kendaraan</option>
-                                                    <option value="Alat Olahraga" ${item.kategori === 'Alat Olahraga' ? 'selected' : ''}>Alat Olahraga</option>
+                                                    ${CATEGORIES_LIST.map(cat => `<option value="${cat}" ${item.kategori === cat ? 'selected' : ''}>${cat}</option>`).join('')}
                                                 </select>
                                             </div>
                                             <div>
@@ -829,7 +830,7 @@
                         <!-- 2. TAMBAH STOK BARANG YANG SUDAH ADA (DI BAWAH) -->
                         <div class="space-y-6">
                             <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">2. Tambah Stok Barang Yang Sudah Ada</h4>
-                            ${categories.map(cat => {
+                            ${CATEGORIES_LIST.map(cat => {
                                 let itemsInCat = state.barang.filter(b => b.kategori === cat);
                                 if (itemsInCat.length === 0) return '';
                                 return `
