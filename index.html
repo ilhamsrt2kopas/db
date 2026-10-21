@@ -12,8 +12,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     
-    <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
-    <script src="https://cdn.jsdelivr.net/npm/@Supabase/Supabase-js@2"></script>
+    <!-- Perbaikan CDN (huruf kecil semua) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -33,12 +33,12 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI Supabase -->
-    <script>
-        const Supabase_URL = "https://zieqydhkfptzjnhsjlvh.Supabase.co";
-        const Supabase_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
-        const SupabaseClient = Supabase.createClient(Supabase_URL, Supabase_ANON_KEY);
-    </script>
+    <!-- Perbaikan Inisialisasi Client -->
+<script>
+    const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6InFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
 
     <!-- Global Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden p-4">
@@ -126,7 +126,7 @@
         }
 
         async function fetchAppData(silent = false) {
-            if (!silent) showLoading("Mengambil data dari Supabase...");
+            if (!silent) showLoading("Mengambil data dari Database...");
             try {
                 const { data: dataBarang, error: errBarang } = await SupabaseClient
                     .from('barang')
@@ -175,8 +175,8 @@
 
                 render();
             } catch (err) {
-                console.error("Supabase error:", err);
-                if (!silent) showToast("Gagal memuat data dari Supabase.", true);
+                console.error("Database error:", err);
+                if (!silent) showToast("Gagal memuat data dari Database.", true);
             } finally {
                 if (!silent) hideLoading();
             }
