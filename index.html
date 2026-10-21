@@ -34,10 +34,10 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI SUPABASE -->
+    <!-- KONFIGURASI SUPABASE (Diperbaiki: role 'anon' yang benar) -->
     <script>
         const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6InFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
 
@@ -944,7 +944,6 @@
 
             showLoading("Menyimpan penambahan stok & log...");
             try {
-                // Generate M-YYMMDD for id_input
                 const now = new Date();
                 const year = String(now.getFullYear()).slice(-2);
                 const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1183,7 +1182,6 @@
 
             showLoading("Memproses Transaksi...");
             try {
-                // Generate K-YYMMDD for id_transaksi
                 const now = new Date();
                 const year = String(now.getFullYear()).slice(-2);
                 const month = String(now.getMonth() + 1).padStart(2, '0');
