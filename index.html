@@ -34,7 +34,7 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI SUPABASE (Diperbaiki: role 'anon' yang benar) -->
+    <!-- KONFIGURASI DATABASE -->
     <script>
         const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
@@ -108,7 +108,7 @@
             transaksi: [],
             cart: {}, 
             addStockCart: {}, 
-            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ], 
+            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ], 
             activeTab: 'dashboard',
             barangSubmenuOpen: true,
             searchQuery: '',
@@ -190,7 +190,7 @@
                 render();
             } catch (err) {
                 console.error("Database error:", err);
-                if (!silent) showToast("Gagal memuat data dari database.", true);
+                if (!silent) showToast("Gagal memuat data dari Database.", true);
             } finally {
                 if (!silent) hideLoading();
             }
@@ -500,35 +500,70 @@
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
+            
+            // Filter terpisah untuk Peminjaman dan Pengambilan
+            const todayPinjam = todayTrx.filter(t => (t.jenis || '').toLowerCase().includes('pinjam'));
+            const todayAmbil = todayTrx.filter(t => (t.jenis || '').toLowerCase().includes('ambil'));
+
             const top4Categories = getTop4Categories();
             
             main.innerHTML = `
                 <div class="space-y-6">
-                    <!-- Peminjaman Hari Ini -->
-                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-clock text-orange-500"></i> Peminjaman Hari Ini
-                            </h3>
-                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayTrx.length} Aktivitas</span>
-                        </div>
-                        <div class="overflow-y-auto max-h-60 pr-1">
-                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada aktivitas transaksi hari ini.</p>' : `
-                                <div class="space-y-3">
-                                    ${todayTrx.map(t => `
-                                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-center gap-1.5 flex-wrap">
-                                                    <span class="font-mono text-[10px] font-bold text-slate-500 bg-slate-200 px-1 py-0.5 rounded">#${t.idTransaksi}</span>
-                                                    <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Peminjaman Barang Hari Ini -->
+                        <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-clock-rotate-left text-orange-500"></i> Peminjaman Barang Hari Ini
+                                </h3>
+                                <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayPinjam.length} Aktivitas</span>
+                            </div>
+                            <div class="overflow-y-auto max-h-60 pr-1">
+                                ${todayPinjam.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada peminjaman hari ini.</p>' : `
+                                    <div class="space-y-3">
+                                        ${todayPinjam.map(t => `
+                                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        <span class="font-mono text-[10px] font-bold text-slate-500 bg-slate-200 px-1 py-0.5 rounded">#${t.idTransaksi}</span>
+                                                        <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                                                    </div>
+                                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
+                                                    <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
                                                 </div>
-                                                <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
-                                                <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
                                             </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            `}
+                                        `).join('')}
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Pengambilan Barang Hari Ini -->
+                        <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-hand-holding text-green-600"></i> Pengambilan Barang Hari Ini
+                                </h3>
+                                <span class="bg-green-50 text-green-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayAmbil.length} Aktivitas</span>
+                            </div>
+                            <div class="overflow-y-auto max-h-60 pr-1">
+                                ${todayAmbil.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada pengambilan hari ini.</p>' : `
+                                    <div class="space-y-3">
+                                        ${todayAmbil.map(t => `
+                                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        <span class="font-mono text-[10px] font-bold text-slate-500 bg-slate-200 px-1 py-0.5 rounded">#${t.idTransaksi}</span>
+                                                        <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                                                    </div>
+                                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-green-600">${t.jenis}</span></p>
+                                                    <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                `}
+                            </div>
                         </div>
                     </div>
 
@@ -819,9 +854,9 @@
                                             <div>
                                                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
                                                 <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                    <option value="Perkantoran" ${item.sumber === 'Perkantoran' ? 'selected' : ''}>Perkantoran (A)</option>
-                                                    <option value="Persediaan" ${item.sumber === 'Persediaan' ? 'selected' : ''}>Persediaan (B)</option>
-                                                    <option value="Media Pembelajaran" ${item.sumber === 'Media Pembelajaran' ? 'selected' : ''}>Media Pembelajaran (C)</option>
+                                                    <option value="Akun Belanja ATK" ${item.sumber === 'Akun Belanja ATK' ? 'selected' : ''}>Akun Belanja ATK (A)</option>
+                                                    <option value="Akun Belanja Persediaan" ${item.sumber === 'Akun Belanja Persediaan' ? 'selected' : ''}>Akun Belanja Persediaan (B)</option>
+                                                    <option value="Akun Belanja Media Pembelajaran" ${item.sumber === 'Akun Belanja Media Pembelajaran' ? 'selected' : ''}>Akun Belanja Media Pembelajaran (C)</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -887,7 +922,7 @@
         }
 
         function addNewItemRow() {
-            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false });
+            state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false });
             renderTambahStokContent();
             setTimeout(() => {
                 let newIdx = state.newItemList.length - 1;
@@ -983,8 +1018,8 @@
                     let insertPayload = [];
                     for (let newItem of validNewItems) {
                         let prefix = "A";
-                        if (newItem.sumber === "Persediaan") prefix = "B";
-                        else if (newItem.sumber === "Media Pembelajaran") prefix = "C";
+                        if (newItem.sumber === "Akun Belanja Persediaan") prefix = "B";
+                        else if (newItem.sumber === "Akun Belanja Media Pembelajaran") prefix = "C";
 
                         let countPrefix = state.barang.filter(b => b.id.startsWith(prefix + "-")).length;
                         let newSeq = countPrefix + 1;
@@ -1027,7 +1062,7 @@
 
                 showToast("Penambahan stok & log berhasil disimpan!");
                 state.addStockCart = {};
-                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ];
+                state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ];
                 await fetchAppData();
             } catch(err) {
                 console.error(err);
