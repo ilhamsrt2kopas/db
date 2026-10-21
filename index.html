@@ -138,7 +138,7 @@
         }
 
         async function fetchAppData(silent = false) {
-            if (!silent) showLoading("Mengambil data dari Supabase...");
+            if (!silent) showLoading("Mengambil data dari Database...");
             try {
                 const { data: dataBarang, error: errBarang } = await supabaseClient
                     .from('barang')
@@ -189,7 +189,7 @@
 
                 render();
             } catch (err) {
-                console.error("Supabase error:", err);
+                console.error("Database error:", err);
                 if (!silent) showToast("Gagal memuat data dari database.", true);
             } finally {
                 if (!silent) hideLoading();
