@@ -34,24 +34,14 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI SUPABASE -->
+    <!-- KONFIGURASI SUPABASE & APPS SCRIPT -->
     <script>
         const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        async function syncToGoogleSheet(dataPayload) {
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; // URL berakhiran /exec
-    try {
-        await fetch(WEB_APP_URL, {
-            method: "POST",
-            mode: "no-cors", // Menghindari masalah CORS dari Google Apps Script
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(dataPayload)
-        });
-    } catch (err) {
-        console.error("Gagal sinkron ke Google Sheet:", err);
-    }
-}
+
+        // URL Web App dari Google Apps Script setelah di-Deploy
+        const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; 
     </script>
 
     <!-- Global Loading Overlay -->
@@ -104,7 +94,6 @@
     </div>
 
     <script>
-        // Kategori resmi sesuai database
         const CATEGORIES_LIST = [
             'ATK',
             'Elektronik/Listrik',
@@ -138,6 +127,21 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
             });
+        }
+
+        // FUNGSI SINKRONISASI KLIEN KE GOOGLE SHEETS
+        async function syncToGoogleSheets(payload) {
+            if (!APPS_SCRIPT_WEB_APP_URL || APPS_SCRIPT_WEB_APP_URL.includes("MASUKKAN_URL")) return;
+            try {
+                await fetch(APPS_SCRIPT_WEB_APP_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Sinkronisasi ke Google Sheet gagal:", err);
+            }
         }
 
         function showLoading(text = "Memuat Data...") {
@@ -492,7 +496,6 @@
             render();
         }
 
-        // FUNGSI MENDAPATKAN TOP 4 KATEGORI DENGAN TOTAL STOK TERBANYAK
         function getTop4Categories() {
             let catTotals = CATEGORIES_LIST.map(cat => {
                 let items = state.barang.filter(b => b.kategori === cat);
@@ -505,7 +508,6 @@
                 };
             });
 
-            // Urutkan berdasarkan total stok terbanyak, ambil 4 teratas yang memiliki item
             catTotals.sort((a, b) => b.totalStok - a.totalStok);
             return catTotals.filter(c => c.itemCount > 0).slice(0, 4);
         }
@@ -953,9 +955,10 @@
                 return;
             }
 
-            showLoading("Menyimpan penambahan stok & log...");
+            showLoading("Menyimpan penambahan stok & sync...");
             try {
                 let logMasukPayload = [];
+                let syncItemsPayload = [];
 
                 for (let item of existingItems) {
                     let targetBarang = state.barang.find(b => b.id === item.id);
@@ -970,6 +973,15 @@
                             id_barang: item.id,
                             nama_barang: targetBarang.nama,
                             jumlah: item.addQty
+                        });
+
+                        syncItemsPayload.push({
+                            id_barang: item.id,
+                            nama_barang: targetBarang.nama,
+                            kategori: targetBarang.kategori,
+                            sumber_perolehan: targetBarang.sumberPerolehan,
+                            stok: newStok,
+                            hanya_pinjam: targetBarang.hanyaPinjam
                         });
                     }
                 }
@@ -997,6 +1009,15 @@
 
                         state.barang.push({ id: newIdBarang, nama: newItem.nama });
 
+                        syncItemsPayload.push({
+                            id_barang: newIdBarang,
+                            sumber_perolehan: newItem.sumber,
+                            kategori: newItem.kategori,
+                            nama_barang: newItem.nama.trim(),
+                            stok: newItem.stok,
+                            hanya_pinjam: newItem.hanyaPinjam
+                        });
+
                         if (newItem.stok > 0) {
                             logMasukPayload.push({
                                 id_barang: newIdBarang,
@@ -1013,6 +1034,12 @@
                     await supabaseClient.from('masuk').insert(logMasukPayload);
                 }
 
+                // SINKRONISASI LANGSUNG KE GOOGLE SHEETS
+                await syncToGoogleSheets({
+                    type: "SYNC_BARANG",
+                    items: syncItemsPayload
+                });
+
                 showToast("Penambahan stok & log berhasil disimpan!");
                 state.addStockCart = {};
                 state.newItemList = [ { nama: '', kategori: 'ATK', sumber: 'Akun Belanja ATK', stok: 0, hanyaPinjam: false } ];
@@ -1023,10 +1050,6 @@
             } finally {
                 hideLoading();
             }
-            await syncToGoogleSheet({
-    type: "ADD_STOCK",
-    items: existingItems.concat(validNewItems)
-});
         }
 
         function getFilteredBarang() {
@@ -1166,6 +1189,8 @@
         async function executeTransaction() {
             closeConfirmModal();
             let itemsPayload = [];
+            let syncBarangPayload = [];
+
             for (let id in state.cart) {
                 if (state.cart[id] > 0) {
                     itemsPayload.push({ id: id, jumlah: state.cart[id] });
@@ -1210,8 +1235,36 @@
                             jenis_transaksi: pendingJenis,
                             status: statusTrx
                         }]);
+
+                        syncBarangPayload.push({
+                            id_barang: itm.id,
+                            nama_barang: targetBarang.nama,
+                            kategori: targetBarang.kategori,
+                            sumber_perolehan: targetBarang.sumberPerolehan,
+                            stok: newStok,
+                            hanya_pinjam: targetBarang.hanyaPinjam
+                        });
                     }
                 }
+
+                // SINKRONISASI TRANSAKSI DAN STOK KE GOOGLE SHEETS
+                await syncToGoogleSheets({
+                    type: "TRANSACTION",
+                    id_transaksi: customTrxId,
+                    nip: state.user.nip,
+                    nama_pengguna: state.user.nama,
+                    jenis: pendingJenis,
+                    status: statusTrx,
+                    items: itemsPayload.map(i => {
+                        let b = state.barang.find(x => x.id === i.id);
+                        return { id_barang: i.id, nama_barang: b ? b.nama : '', jumlah: i.jumlah };
+                    })
+                });
+
+                await syncToGoogleSheets({
+                    type: "SYNC_BARANG",
+                    items: syncBarangPayload
+                });
 
                 showToast(`Transaksi berhasil dipproses dengan ID: #${customTrxId}`);
                 state.cart = {};
@@ -1222,14 +1275,6 @@
             } finally {
                 hideLoading();
             }
-            // Setelah berhasil insert transaksi & update stok di Supabase:
-await syncToGoogleSheet({
-    type: "TRANSACTION",
-    id_transaksi: customTrxId,
-    nama_pengguna: state.user.nama,
-    jenis: pendingJenis,
-    items: itemsPayload
-});
         }
 
         let activeReturnTrxId = null;
@@ -1287,6 +1332,18 @@ await syncToGoogleSheet({
                         .from('barang')
                         .update({ stok: updatedStok })
                         .eq('id_barang', trxObj.idBarang);
+
+                    await syncToGoogleSheets({
+                        type: "SYNC_BARANG",
+                        items: [{
+                            id_barang: targetBarang.id,
+                            nama_barang: targetBarang.nama,
+                            kategori: targetBarang.kategori,
+                            sumber_perolehan: targetBarang.sumberPerolehan,
+                            stok: updatedStok,
+                            hanya_pinjam: targetBarang.hanyaPinjam
+                        }]
+                    });
                 }
 
                 showToast("Pengembalian barang berhasil dicatat!");
