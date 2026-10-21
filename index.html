@@ -11,8 +11,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     
-    <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Database JS Client & Tailwind CSS & Chart.js & FontAwesome -->
+    <script src="https://cdn.jsdelivr.net/npm/@Database/Database-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -32,11 +32,11 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI SUPABASE -->
+    <!-- KONFIGURASI Database -->
     <script>
-        const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const Database_URL = "https://zieqydhkfptzjnhsjlvh.Database.co";
+        const Database_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
+        const DatabaseClient = Database.createClient(Database_URL, Database_ANON_KEY);
     </script>
 
     <!-- Global Loading Overlay -->
@@ -125,18 +125,19 @@
         }
 
         async function fetchAppData(silent = false) {
-            if (!silent) showLoading("Mengambil data dari Supabase...");
+            if (!silent) showLoading("Mengambil data dari Database...");
             try {
-                const { data: dataBarang, error: errBarang } = await supabaseClient
+                const { data: dataBarang, error: errBarang } = await DatabaseClient
                     .from('barang')
                     .select('*')
                     .order('nama_barang', { ascending: true });
                 if (errBarang) throw errBarang;
 
-                const { data: dataTrx, error: errTrx } = await supabaseClient
+                // Diubah: order berdasarkan id_transaksi karena created_at sudah dihapus
+                const { data: dataTrx, error: errTrx } = await DatabaseClient
                     .from('transaksi')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('id_transaksi', { ascending: false });
                 if (errTrx) throw errTrx;
 
                 state.barang = (dataBarang || []).map(b => ({
@@ -150,8 +151,14 @@
 
                 const todayStr = new Date().toISOString().split('T')[0];
                 state.transaksi = (dataTrx || []).map(t => {
-                    const trxCreatedAt = t.created_at ? new Date(t.created_at) : new Date();
-                    const trxDateStr = trxCreatedAt.toISOString().split('T')[0];
+                    const idTrxStr = String(t.id_transaksi || '');
+                    let trxDateStr = todayStr;
+                    if (idTrxStr.length >= 6) {
+                        const yy = '20' + idTrxStr.slice(0, 2);
+                        const mm = idTrxStr.slice(2, 4);
+                        const dd = idTrxStr.slice(4, 6);
+                        trxDateStr = `${yy}-${mm}-${dd}`;
+                    }
                     return {
                         idTransaksi: t.id_transaksi || t.id,
                         nip: t.nip || '',
@@ -167,7 +174,7 @@
 
                 render();
             } catch (err) {
-                console.error("Supabase error:", err);
+                console.error("Database error:", err);
                 if (!silent) showToast("Gagal memuat data dari database.", true);
             } finally {
                 if (!silent) hideLoading();
@@ -176,10 +183,10 @@
 
         function initRealtimeListener() {
             if (realtimeChannel) {
-                supabaseClient.removeChannel(realtimeChannel);
+                DatabaseClient.removeChannel(realtimeChannel);
             }
 
-            realtimeChannel = supabaseClient.channel('public-db-changes')
+            realtimeChannel = DatabaseClient.channel('public-db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'barang' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'transaksi' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'masuk' }, () => fetchAppData(true))
@@ -248,7 +255,7 @@
             
             showLoading("Memverifikasi Login...");
             try {
-                const { data, error } = await supabaseClient
+                const { data, error } = await DatabaseClient
                     .from('pengguna')
                     .select('*')
                     .eq('nip', nip)
@@ -282,7 +289,7 @@
 
         function handleLogout() {
             if (realtimeChannel) {
-                supabaseClient.removeChannel(realtimeChannel);
+                DatabaseClient.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
             localStorage.removeItem('sr_user');
@@ -567,7 +574,7 @@
 
             showLoading("Memperbarui password...");
             try {
-                const { data, error } = await supabaseClient
+                const { data, error } = await DatabaseClient
                     .from('pengguna')
                     .update({ password: newPassword })
                     .eq('nip', state.user.nip)
@@ -893,7 +900,7 @@
                     let targetBarang = state.barang.find(b => b.id === item.id);
                     if (targetBarang) {
                         let newStok = targetBarang.stok + item.addQty;
-                        await supabaseClient
+                        await DatabaseClient
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', item.id);
@@ -938,11 +945,11 @@
                         }
                     }
 
-                    await supabaseClient.from('barang').insert(insertPayload);
+                    await DatabaseClient.from('barang').insert(insertPayload);
                 }
 
                 if (logMasukPayload.length > 0) {
-                    await supabaseClient.from('masuk').insert(logMasukPayload);
+                    await DatabaseClient.from('masuk').insert(logMasukPayload);
                 }
 
                 showToast("Penambahan stok & log berhasil disimpan!");
@@ -1108,7 +1115,7 @@
                 const day = String(now.getDate()).padStart(2, '0');
                 const datePrefix = year + month + day;
 
-                const { count } = await supabaseClient
+                const { count } = await DatabaseClient
                     .from('transaksi')
                     .select('*', { count: 'exact', head: true })
                     .like('id_transaksi', `${datePrefix}%`);
@@ -1123,12 +1130,12 @@
                     let targetBarang = state.barang.find(b => b.id === itm.id);
                     if (targetBarang) {
                         let newStok = targetBarang.stok - itm.jumlah;
-                        await supabaseClient
+                        await DatabaseClient
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', itm.id);
 
-                        await supabaseClient.from('transaksi').insert([{
+                        await DatabaseClient.from('transaksi').insert([{
                             id_transaksi: customTrxId,
                             nip: state.user.nip,
                             nama_pengguna: state.user.nama,
@@ -1195,7 +1202,7 @@
                     newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}`;
                 }
 
-                await supabaseClient
+                await DatabaseClient
                     .from('transaksi')
                     .update({ status: newStatus })
                     .eq('id_transaksi', activeReturnTrxId);
@@ -1203,7 +1210,7 @@
                 let targetBarang = state.barang.find(b => b.id === trxObj.idBarang);
                 if (targetBarang) {
                     let updatedStok = targetBarang.stok + qty;
-                    await supabaseClient
+                    await DatabaseClient
                         .from('barang')
                         .update({ stok: updatedStok })
                         .eq('id_barang', trxObj.idBarang);
