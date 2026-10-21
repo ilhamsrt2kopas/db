@@ -34,10 +34,10 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- KONFIGURASI SUPABASE (Murni langsung ke Supabase) -->
+    <!-- KONFIGURASI SUPABASE -->
     <script>
         const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6InFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
 
@@ -165,11 +165,14 @@
                 state.transaksi = (dataTrx || []).map(t => {
                     const idTrxStr = String(t.id_transaksi || '');
                     let trxDateStr = todayStr;
-                    if (idTrxStr.length >= 6) {
-                        const yy = '20' + idTrxStr.slice(0, 2);
-                        const mm = idTrxStr.slice(2, 4);
-                        const dd = idTrxStr.slice(4, 6);
-                        trxDateStr = `${yy}-${mm}-${dd}`;
+                    if (idTrxStr.length >= 8) {
+                        const cleanId = idTrxStr.replace(/^K-/, '');
+                        if (cleanId.length >= 6) {
+                            const yy = '20' + cleanId.slice(0, 2);
+                            const mm = cleanId.slice(2, 4);
+                            const dd = cleanId.slice(4, 6);
+                            trxDateStr = `${yy}-${mm}-${dd}`;
+                        }
                     }
                     return {
                         idTransaksi: t.id_transaksi || t.id,
@@ -670,7 +673,8 @@
             main.innerHTML = `
                 <div class="space-y-6">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div class="p-3 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <!-- Tombol Ambil & Pinjam Sticky -->
+                        <div class="p-3 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sticky top-0 bg-white z-10 shadow-sm">
                             <div>
                                 <h3 class="text-sm sm:text-base font-bold text-slate-900">Daftar Inventaris Barang</h3>
                                 <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">Atur jumlah barang untuk pengambilan atau peminjaman</p>
@@ -773,7 +777,8 @@
             main.innerHTML = `
                 <div class="space-y-6">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-6 gap-3">
+                        <!-- Tombol Simpan Penambahan Stok Sticky -->
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-6 gap-3 sticky top-0 bg-white z-10 pt-2 shadow-sm">
                             <div>
                                 <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                                     <i class="fa-solid fa-boxes-packing text-orange-500"></i> Modul Tambah Stok Barang
@@ -937,8 +942,21 @@
                 return;
             }
 
-            showLoading("Menyimpan penambahan stok...");
+            showLoading("Menyimpan penambahan stok & log...");
             try {
+                // Generate M-YYMMDD for id_input
+                const now = new Date();
+                const year = String(now.getFullYear()).slice(-2);
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const datePrefix = year + month + day;
+
+                const { count } = await supabaseClient
+                    .from('masuk')
+                    .select('*', { count: 'exact', head: true })
+                    .like('id_input', `M-${datePrefix}%`);
+
+                let seq = (count || 0) + 1;
                 let logMasukPayload = [];
 
                 for (let item of existingItems) {
@@ -950,7 +968,11 @@
                             .update({ stok: newStok })
                             .eq('id_barang', item.id);
 
+                        const idInputVal = `M-${datePrefix}${String(seq).padStart(4, '0')}`;
+                        seq++;
+
                         logMasukPayload.push({
+                            id_input: idInputVal,
                             id_barang: item.id,
                             nama_barang: targetBarang.nama,
                             jumlah: item.addQty
@@ -982,7 +1004,11 @@
                         state.barang.push({ id: newIdBarang, nama: newItem.nama });
 
                         if (newItem.stok > 0) {
+                            const idInputVal = `M-${datePrefix}${String(seq).padStart(4, '0')}`;
+                            seq++;
+
                             logMasukPayload.push({
+                                id_input: idInputVal,
                                 id_barang: newIdBarang,
                                 nama_barang: newItem.nama.trim(),
                                 jumlah: newItem.stok
@@ -994,7 +1020,10 @@
                 }
 
                 if (logMasukPayload.length > 0) {
-                    await supabaseClient.from('masuk').insert(logMasukPayload);
+                    const { error: errMasuk } = await supabaseClient.from('masuk').insert(logMasukPayload);
+                    if (errMasuk) {
+                        console.error("Gagal mencatat log masuk:", errMasuk);
+                    }
                 }
 
                 showToast("Penambahan stok & log berhasil disimpan!");
@@ -1154,6 +1183,7 @@
 
             showLoading("Memproses Transaksi...");
             try {
+                // Generate K-YYMMDD for id_transaksi
                 const now = new Date();
                 const year = String(now.getFullYear()).slice(-2);
                 const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1163,10 +1193,11 @@
                 const { count } = await supabaseClient
                     .from('transaksi')
                     .select('*', { count: 'exact', head: true })
-                    .like('id_transaksi', `${datePrefix}%`);
+                    .like('id_transaksi', `K-${datePrefix}%`);
 
                 const seq = (count || 0) + 1;
-                const customTrxId = `${datePrefix}${seq}`;
+                const seqPadded = String(seq).padStart(4, '0');
+                const customTrxId = `K-${datePrefix}${seqPadded}`;
                 
                 const timestampStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 const statusTrx = (pendingJenis === "Ambil") ? `Selesai pada ${timestampStr}` : `Dipinjam pada ${timestampStr}`;
