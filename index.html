@@ -39,6 +39,19 @@
         const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        async function syncToGoogleSheet(dataPayload) {
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwB7lYWpIb4HIh0TKgQFdgQp1DcUr_XVY8epBBwoUS5nOtuExAooVKGQCuMq9eIw4dU6A/exec"; // URL berakhiran /exec
+    try {
+        await fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors", // Menghindari masalah CORS dari Google Apps Script
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dataPayload)
+        });
+    } catch (err) {
+        console.error("Gagal sinkron ke Google Sheet:", err);
+    }
+}
     </script>
 
     <!-- Global Loading Overlay -->
@@ -1010,6 +1023,10 @@
             } finally {
                 hideLoading();
             }
+            await syncToGoogleSheet({
+    type: "ADD_STOCK",
+    items: existingItems.concat(validNewItems)
+});
         }
 
         function getFilteredBarang() {
@@ -1205,6 +1222,14 @@
             } finally {
                 hideLoading();
             }
+            // Setelah berhasil insert transaksi & update stok di Supabase:
+await syncToGoogleSheet({
+    type: "TRANSACTION",
+    id_transaksi: customTrxId,
+    nama_pengguna: state.user.nama,
+    jenis: pendingJenis,
+    items: itemsPayload
+});
         }
 
         let activeReturnTrxId = null;
