@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</title>
-    <!-- Favicon -->
+    <!-- Favicon & Apple Touch Icon Lokal -->
     <link rel="icon" type="image/png" href="./icons/icon-512.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href=".icons/apple-touch-icon.png">
     
     <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -479,9 +479,28 @@
             render();
         }
 
+        // FUNGSI MENDAPATKAN TOP 4 KATEGORI DENGAN TOTAL STOK TERBANYAK
+        function getTop4Categories() {
+            let catTotals = CATEGORIES_LIST.map(cat => {
+                let items = state.barang.filter(b => b.kategori === cat);
+                let totalStok = items.reduce((sum, b) => sum + b.stok, 0);
+                return {
+                    category: cat,
+                    itemCount: items.length,
+                    totalStok: totalStok,
+                    items: items
+                };
+            });
+
+            // Urutkan berdasarkan total stok terbanyak, ambil 4 teratas yang memiliki item
+            catTotals.sort((a, b) => b.totalStok - a.totalStok);
+            return catTotals.filter(c => c.itemCount > 0).slice(0, 4);
+        }
+
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
+            const top4Categories = getTop4Categories();
             
             main.innerHTML = `
                 <div class="space-y-6">
@@ -513,23 +532,23 @@
                         </div>
                     </div>
 
-                    <!-- Statistik Stok Per Kategori Sesuai Database -->
+                    <!-- Statistik Top 4 Kategori Barang Terbanyak -->
                     <div>
-                        <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Per Kategori Barang
-                        </h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Top 4 Kategori Terbanyak
+                            </h3>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            ${CATEGORIES_LIST.map(cat => {
-                                let itemsInCat = state.barang.filter(b => b.kategori === cat);
-                                if (itemsInCat.length === 0) return '';
-                                const canvasId = `chart-${cat.replace(/[^a-zA-Z0-9]/g, '')}`;
+                            ${top4Categories.length === 0 ? '<p class="col-span-2 text-sm text-slate-400 text-center py-6">Belum ada data barang.</p>' : top4Categories.map(catObj => {
+                                const canvasId = `chart-${catObj.category.replace(/[^a-zA-Z0-9]/g, '')}`;
                                 return `
                                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                                         <div class="flex justify-between items-center mb-3">
                                             <h4 class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-2">
-                                                <i class="fa-solid fa-folder text-orange-500"></i> ${cat}
+                                                <i class="fa-solid fa-folder text-orange-500"></i> ${catObj.category}
                                             </h4>
-                                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">${itemsInCat.length} Item</span>
+                                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">${catObj.itemCount} Item (${catObj.totalStok} Stok)</span>
                                         </div>
                                         <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
                                             <canvas id="${canvasId}"></canvas>
@@ -545,16 +564,14 @@
         }
 
         function initCategoryCharts() {
-            CATEGORIES_LIST.forEach(cat => {
-                const canvasId = `chart-${cat.replace(/[^a-zA-Z0-9]/g, '')}`;
+            const top4Categories = getTop4Categories();
+            top4Categories.forEach(catObj => {
+                const canvasId = `chart-${catObj.category.replace(/[^a-zA-Z0-9]/g, '')}`;
                 const ctx = document.getElementById(canvasId);
                 if (!ctx) return;
 
-                let itemsInCat = state.barang.filter(b => b.kategori === cat);
-                if (itemsInCat.length === 0) return;
-
-                const labels = itemsInCat.map(b => b.nama);
-                const dataStok = itemsInCat.map(b => b.stok);
+                const labels = catObj.items.map(b => b.nama);
+                const dataStok = catObj.items.map(b => b.stok);
 
                 new Chart(ctx, {
                     type: 'bar',
@@ -1179,7 +1196,7 @@
                     }
                 }
 
-                showToast(`Transaksi berhasil diproses dengan ID: #${customTrxId}`);
+                showToast(`Transaksi berhasil dipproses dengan ID: #${customTrxId}`);
                 state.cart = {};
                 await fetchAppData();
             } catch (err) {
