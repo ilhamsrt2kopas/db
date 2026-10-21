@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <link rel="icon" type="image/png" href="./icons/icon-192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
     
-    <!-- Perbaikan CDN (huruf kecil semua) -->
+    <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -33,12 +34,12 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- Perbaikan Inisialisasi Client -->
-<script>
-    const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
-    const SupabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-</script>
+    <!-- KONFIGURASI SUPABASE -->
+    <script>
+        const SUPABASE_URL = "https://zieqydhkfptzjnhsjlvh.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
 
     <!-- Global Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden p-4">
@@ -126,16 +127,15 @@
         }
 
         async function fetchAppData(silent = false) {
-            if (!silent) showLoading("Mengambil data dari Database...");
+            if (!silent) showLoading("Mengambil data dari Supabase...");
             try {
-                const { data: dataBarang, error: errBarang } = await SupabaseClient
+                const { data: dataBarang, error: errBarang } = await supabaseClient
                     .from('barang')
                     .select('*')
                     .order('nama_barang', { ascending: true });
                 if (errBarang) throw errBarang;
 
-                // Diubah: order berdasarkan id_transaksi karena created_at sudah dihapus
-                const { data: dataTrx, error: errTrx } = await SupabaseClient
+                const { data: dataTrx, error: errTrx } = await supabaseClient
                     .from('transaksi')
                     .select('*')
                     .order('id_transaksi', { ascending: false });
@@ -175,8 +175,8 @@
 
                 render();
             } catch (err) {
-                console.error("Database error:", err);
-                if (!silent) showToast("Gagal memuat data dari Database.", true);
+                console.error("Supabase error:", err);
+                if (!silent) showToast("Gagal memuat data dari database.", true);
             } finally {
                 if (!silent) hideLoading();
             }
@@ -184,10 +184,10 @@
 
         function initRealtimeListener() {
             if (realtimeChannel) {
-                SupabaseClient.removeChannel(realtimeChannel);
+                supabaseClient.removeChannel(realtimeChannel);
             }
 
-            realtimeChannel = SupabaseClient.channel('public-db-changes')
+            realtimeChannel = supabaseClient.channel('public-db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'barang' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'transaksi' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'masuk' }, () => fetchAppData(true))
@@ -256,7 +256,7 @@
             
             showLoading("Memverifikasi Login...");
             try {
-                const { data, error } = await SupabaseClient
+                const { data, error } = await supabaseClient
                     .from('pengguna')
                     .select('*')
                     .eq('nip', nip)
@@ -290,7 +290,7 @@
 
         function handleLogout() {
             if (realtimeChannel) {
-                SupabaseClient.removeChannel(realtimeChannel);
+                supabaseClient.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
             localStorage.removeItem('sr_user');
@@ -467,12 +467,15 @@
             render();
         }
 
+        // DASHBOARD DIPERBARUI: GRAFIK DIPIFAH PER KATEGORI
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const todayTrx = state.transaksi.filter(t => t.isToday);
+            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
             
             main.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-6">
+                    <!-- Peminjaman Hari Ini -->
                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
@@ -480,8 +483,8 @@
                             </h3>
                             <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayTrx.length} Aktivitas</span>
                         </div>
-                        <div class="flex-1 overflow-y-auto max-h-80 pr-1">
-                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-8">Belum ada aktivitas transaksi hari ini.</p>' : `
+                        <div class="overflow-y-auto max-h-60 pr-1">
+                            ${todayTrx.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada aktivitas transaksi hari ini.</p>' : `
                                 <div class="space-y-3">
                                     ${todayTrx.map(t => `
                                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
@@ -500,46 +503,72 @@
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                    <!-- Statistik Stok Per Kategori -->
+                    <div>
                         <h3 class="text-sm sm:text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Barang
+                            <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Per Kategori Barang
                         </h3>
-                        <div class="relative flex-1 flex items-center justify-center min-h-[250px] sm:min-h-[280px]">
-                            <canvas id="stockChart"></canvas>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            ${categories.map(cat => {
+                                let itemsInCat = state.barang.filter(b => b.kategori === cat);
+                                if (itemsInCat.length === 0) return '';
+                                const canvasId = `chart-${cat.replace(/\s+/g, '')}`;
+                                return `
+                                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                                        <div class="flex justify-between items-center mb-3">
+                                            <h4 class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-2">
+                                                <i class="fa-solid fa-folder text-orange-500"></i> ${cat}
+                                            </h4>
+                                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">${itemsInCat.length} Item</span>
+                                        </div>
+                                        <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
+                                            <canvas id="${canvasId}"></canvas>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
             `;
-            setTimeout(initChart, 100);
+            setTimeout(initCategoryCharts, 100);
         }
 
-        function initChart() {
-            const ctx = document.getElementById('stockChart');
-            if (!ctx) return;
-            
-            const labels = state.barang.map(b => b.nama);
-            const dataStok = state.barang.map(b => b.stok);
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Sisa Stok',
-                        data: dataStok,
-                        backgroundColor: '#f97316',
-                        borderRadius: 8,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
-                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        // FUNGSI INISIALISASI MULTI GRAFIK KATEGORI
+        function initCategoryCharts() {
+            const categories = ['ATK', 'Alat Elektronik', 'Konsumsi', 'Kendaraan', 'Alat Olahraga'];
+            categories.forEach(cat => {
+                const canvasId = `chart-${cat.replace(/\s+/g, '')}`;
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return;
+
+                let itemsInCat = state.barang.filter(b => b.kategori === cat);
+                if (itemsInCat.length === 0) return;
+
+                const labels = itemsInCat.map(b => b.nama);
+                const dataStok = itemsInCat.map(b => b.stok);
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Sisa Stok',
+                            data: dataStok,
+                            backgroundColor: '#f97316',
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
                     }
-                }
+                });
             });
         }
 
@@ -575,7 +604,7 @@
 
             showLoading("Memperbarui password...");
             try {
-                const { data, error } = await SupabaseClient
+                const { data, error } = await supabaseClient
                     .from('pengguna')
                     .update({ password: newPassword })
                     .eq('nip', state.user.nip)
@@ -901,7 +930,7 @@
                     let targetBarang = state.barang.find(b => b.id === item.id);
                     if (targetBarang) {
                         let newStok = targetBarang.stok + item.addQty;
-                        await SupabaseClient
+                        await supabaseClient
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', item.id);
@@ -946,11 +975,11 @@
                         }
                     }
 
-                    await SupabaseClient.from('barang').insert(insertPayload);
+                    await supabaseClient.from('barang').insert(insertPayload);
                 }
 
                 if (logMasukPayload.length > 0) {
-                    await SupabaseClient.from('masuk').insert(logMasukPayload);
+                    await supabaseClient.from('masuk').insert(logMasukPayload);
                 }
 
                 showToast("Penambahan stok & log berhasil disimpan!");
@@ -1116,7 +1145,7 @@
                 const day = String(now.getDate()).padStart(2, '0');
                 const datePrefix = year + month + day;
 
-                const { count } = await SupabaseClient
+                const { count } = await supabaseClient
                     .from('transaksi')
                     .select('*', { count: 'exact', head: true })
                     .like('id_transaksi', `${datePrefix}%`);
@@ -1131,12 +1160,12 @@
                     let targetBarang = state.barang.find(b => b.id === itm.id);
                     if (targetBarang) {
                         let newStok = targetBarang.stok - itm.jumlah;
-                        await SupabaseClient
+                        await supabaseClient
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', itm.id);
 
-                        await SupabaseClient.from('transaksi').insert([{
+                        await supabaseClient.from('transaksi').insert([{
                             id_transaksi: customTrxId,
                             nip: state.user.nip,
                             nama_pengguna: state.user.nama,
@@ -1203,7 +1232,7 @@
                     newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}`;
                 }
 
-                await SupabaseClient
+                await supabaseClient
                     .from('transaksi')
                     .update({ status: newStatus })
                     .eq('id_transaksi', activeReturnTrxId);
@@ -1211,7 +1240,7 @@
                 let targetBarang = state.barang.find(b => b.id === trxObj.idBarang);
                 if (targetBarang) {
                     let updatedStok = targetBarang.stok + qty;
-                    await SupabaseClient
+                    await supabaseClient
                         .from('barang')
                         .update({ stok: updatedStok })
                         .eq('id_barang', trxObj.idBarang);
