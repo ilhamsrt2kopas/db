@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <link rel="icon" type="image/png" href="./icons/icon-192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sekolah Rakyat Terintegrasi 2 Kota Pasuruan</title>
@@ -9,7 +10,7 @@
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     
     <!-- Database JS Client & Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@Database/Database-js@2"></script>
@@ -36,7 +37,7 @@
     <script>
         const Database_URL = "https://zieqydhkfptzjnhsjlvh.Database.co";
         const Database_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppZXF5ZGhrZnB0empuaHNqbHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTMxMDksImV4cCI6MjEwODAyOTEwOX0.au66SkOa3qHDQpWO9oBqWZMrt2vnRtS6IKqq2v98yio"; 
-        const DatabaseClient = Database.createClient(Database_URL, Database_ANON_KEY);
+        const DatabaseClient = Supabase.createClient(Database_URL, Database_ANON_KEY);
     </script>
 
     <!-- Global Loading Overlay -->
