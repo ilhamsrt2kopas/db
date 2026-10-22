@@ -113,7 +113,7 @@
             barangSubmenuOpen: true,
             searchQuery: '',
             addStockSearchQuery: '',
-            historySearchQuery: '', // Query pencarian untuk riwayat peminjaman
+            historySearchQuery: '',
             selectedCategory: 'Semua',
             sortColumn: 'nama',
             sortAsc: true,
@@ -142,7 +142,6 @@
         async function fetchAppData(silent = false) {
             if (!silent) showLoading("Mengambil data dari Database...");
             
-            // RESET JUMLAH SELEKSI SAAT FETCH/REFRESH
             state.cart = {};
             state.addStockCart = {};
 
@@ -497,20 +496,15 @@
             render();
         }
 
-        function getTop4Categories() {
-            let catTotals = CATEGORIES_LIST.map(cat => {
+        function getAllCategoriesStats() {
+            return CATEGORIES_LIST.map(cat => {
                 let items = state.barang.filter(b => b.kategori === cat);
                 let totalStok = items.reduce((sum, b) => sum + b.stok, 0);
                 return {
                     category: cat,
-                    itemCount: items.length,
-                    totalStok: totalStok,
-                    items: items
+                    totalStok: totalStok
                 };
             });
-
-            catTotals.sort((a, b) => b.totalStok - a.totalStok);
-            return catTotals.filter(c => c.itemCount > 0).slice(0, 4);
         }
 
         function renderDashboardContent() {
@@ -524,7 +518,6 @@
             });
 
             const todayAmbil = todayTrx.filter(t => (t.jenis || '').toLowerCase().includes('ambil'));
-            const top4Categories = getTop4Categories();
             
             main.innerHTML = `
                 <div class="space-y-6">
@@ -586,68 +579,59 @@
                         </div>
                     </div>
 
-                    <!-- Statistik Top 4 Kategori Barang Terbanyak -->
-                    <div>
+                    <!-- Statistik Total Stok per Kategori (1 Diagram Gabungan) -->
+                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-chart-bar text-orange-500"></i> Statistik Stok Top 4 Kategori Terbanyak
+                                <i class="fa-solid fa-chart-column text-orange-500"></i> Statistik Total Stok Berdasarkan Kategori Barang
                             </h3>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            ${top4Categories.length === 0 ? '<p class="col-span-2 text-sm text-slate-400 text-center py-6">Belum ada data barang.</p>' : top4Categories.map(catObj => {
-                                const canvasId = `chart-${catObj.category.replace(/[^a-zA-Z0-9]/g, '')}`;
-                                return `
-                                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
-                                        <div class="flex justify-between items-center mb-3">
-                                            <h4 class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-2">
-                                                <i class="fa-solid fa-folder text-orange-500"></i> ${catObj.category}
-                                            </h4>
-                                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">${catObj.itemCount} Item (${catObj.totalStok} Stok)</span>
-                                        </div>
-                                        <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
-                                            <canvas id="${canvasId}"></canvas>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
+                        <div class="relative w-full h-80 sm:h-96 flex items-center justify-center">
+                            <canvas id="combinedCategoryChart"></canvas>
                         </div>
                     </div>
                 </div>
             `;
-            setTimeout(initCategoryCharts, 100);
+            setTimeout(initCombinedCategoryChart, 100);
         }
 
-        function initCategoryCharts() {
-            const top4Categories = getTop4Categories();
-            top4Categories.forEach(catObj => {
-                const canvasId = `chart-${catObj.category.replace(/[^a-zA-Z0-9]/g, '')}`;
-                const ctx = document.getElementById(canvasId);
-                if (!ctx) return;
+        function initCombinedCategoryChart() {
+            const ctx = document.getElementById('combinedCategoryChart');
+            if (!ctx) return;
 
-                const labels = catObj.items.map(b => b.nama);
-                const dataStok = catObj.items.map(b => b.stok);
+            const stats = getAllCategoriesStats();
+            const labels = stats.map(s => s.category);
+            const dataStok = stats.map(s => s.totalStok);
 
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Sisa Stok',
-                            data: dataStok,
-                            backgroundColor: '#f97316',
-                            borderRadius: 6,
-                        }]
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Stok',
+                        data: dataStok,
+                        backgroundColor: '#f97316',
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false } 
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
-                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [4, 4] },
+                            ticks: { font: { size: 11 } }
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { font: { size: 11 } } 
                         }
                     }
-                });
+                }
             });
         }
 
@@ -727,7 +711,6 @@
             main.innerHTML = `
                 <div class="space-y-6">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-                        <!-- HEADER STICKY: Tombol Ambil & Pinjam Tidak Akan Tergulir / Ikut Scroll -->
                         <div class="p-3 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sticky top-0 md:top-[73px] bg-white z-20 shadow-sm rounded-t-2xl">
                             <div>
                                 <h3 class="text-sm sm:text-base font-bold text-slate-900">Daftar Inventaris Barang</h3>
@@ -825,11 +808,9 @@
             `;
         }
 
-        // --- NOUVELLE MODUL: RIWAYAT PEMINJAMAN ---
         function renderRiwayatContent() {
             const main = document.getElementById('mainContent');
             
-            // Filter seluruh riwayat peminjaman (baik aktif maupun yang sudah dikembalikan)
             let loans = state.transaksi.filter(t => {
                 let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
@@ -917,7 +898,6 @@
             main.innerHTML = `
                 <div class="space-y-6">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
-                        <!-- Tombol Simpan Penambahan Stok Sticky -->
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-6 gap-3 sticky top-0 md:top-[73px] bg-white z-20 pt-2 shadow-sm">
                             <div>
                                 <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
