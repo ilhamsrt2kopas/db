@@ -147,7 +147,7 @@
             reportJenisLaporan: 'keluar', // 'keluar' atau 'masuk'
             reportStartDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
             reportEndDate: new Date().toISOString().split('T')[0],
-            reportBarangId: 'semua',
+            reportBarangQuery: '', // Pencarian nama/id barang untuk cetak laporan
             reportJenisTrx: 'semua' // 'semua', 'Ambil', 'Pinjam'
         };
 
@@ -709,13 +709,17 @@
         function renderCetakLaporanContent() {
             const main = document.getElementById('mainContent');
 
-            // Filtering data
+            // Filtering data dengan pencarian nama/id barang
+            let qBarang = (state.reportBarangQuery || '').toLowerCase().trim();
+
             let filteredData = [];
             if (state.reportJenisLaporan === 'keluar') {
                 filteredData = state.transaksi.filter(t => {
                     let matchDate = (!state.reportStartDate || t.tanggal >= state.reportStartDate) &&
                                     (!state.reportEndDate || t.tanggal <= state.reportEndDate);
-                    let matchBarang = (state.reportBarangId === 'semua' || t.idBarang === state.reportBarangId);
+                    let matchBarang = !qBarang || 
+                                      t.idBarang.toLowerCase().includes(qBarang) || 
+                                      t.namaBarang.toLowerCase().includes(qBarang);
                     let matchJenisTrx = (state.reportJenisTrx === 'semua' || (t.jenis || '').toLowerCase().includes(state.reportJenisTrx.toLowerCase()));
                     return matchDate && matchBarang && matchJenisTrx;
                 });
@@ -723,7 +727,9 @@
                 filteredData = state.masuk.filter(m => {
                     let matchDate = (!state.reportStartDate || m.tanggal >= state.reportStartDate) &&
                                     (!state.reportEndDate || m.tanggal <= state.reportEndDate);
-                    let matchBarang = (state.reportBarangId === 'semua' || m.idBarang === state.reportBarangId);
+                    let matchBarang = !qBarang || 
+                                      m.idBarang.toLowerCase().includes(qBarang) || 
+                                      m.namaBarang.toLowerCase().includes(qBarang);
                     return matchDate && matchBarang;
                 });
             }
@@ -739,7 +745,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Surat <span class="text-red-500">*</span></label>
-                               <input type="text" id="inputNoSurat" oninput="state.reportNoSurat = this.value" value="${state.reportNoSurat}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500" placeholder="Contoh: 005/SRT2/X/2026">
+                                <input type="text" id="inputNoSurat" oninput="state.reportNoSurat = this.value" value="${state.reportNoSurat}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500" placeholder="Contoh: 005/SRT2/X/2026">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-600 mb-1">Jenis Laporan</label>
@@ -749,11 +755,11 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">Berdasarkan Barang</label>
-                                <select onchange="state.reportBarangId = this.value; render();" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500">
-                                    <option value="semua">Semua Barang</option>
-                                    ${state.barang.map(b => `<option value="${b.id}" ${state.reportBarangId === b.id ? 'selected' : ''}>[${b.id}] ${b.nama}</option>`).join('')}
-                                </select>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Cari Nama / ID Barang</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-search text-xs"></i></span>
+                                    <input type="text" oninput="state.reportBarangQuery = this.value; render();" value="${state.reportBarangQuery}" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500" placeholder="Ketik nama atau ID barang...">
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-600 mb-1">Dari Tanggal</label>
