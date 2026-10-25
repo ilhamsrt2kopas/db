@@ -13,6 +13,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
+    <!-- Google Fonts: Roboto -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
     <!-- Supabase JS Client & Tailwind CSS & Chart.js & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -788,17 +791,17 @@
                         </div>
                     </div>
 
-                    <!-- Printable Report Area -->
-                    <div id="printableReport" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+                    <!-- Printable Report Area (Font Roboto Applied) -->
+                    <div id="printableReport" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6" style="font-family: 'Roboto', sans-serif;">
                         <!-- Kop Surat Resmi (20% Logo Kemensos, 60% Detail Instansi, 20% Logo Sekolah Rakyat) -->
                         <div class="flex items-center border-b-4 border-double border-black pb-4">
                             <div class="w-1/5 flex justify-center items-center">
-                                <img src="./icons/logo Kemensos only.png" alt="Logo Kemensos" class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
+                                <img src="./icons/logo kemensos only.png" alt="Logo Kemensos" class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
                             </div>
-                            <div class="w-3/5 text-center font-serif leading-tight space-y-0.5 px-2">
+                            <div class="w-3/5 text-center leading-tight space-y-0.5 px-2">
                                 <p class="text-xs sm:text-sm font-bold">KEMENTERIAN SOSIAL REPUBLIK INDONESIA</p>
                                 <p class="text-xs sm:text-sm font-bold">SEKRETARIAT JENDERAL</p>
-                                <p class="text-[11px] sm:text-xs font-bold leading-snug">PUSAT PENDIDIKAN, PELATIHAN, DAN PENGEMBANGAN PROFESI KESEJAHTERAAN SOSIAL</p>
+                                <p class="text-[11px] sm:text-xs font-bold leading-snug">PUSAT PENDIDIKAN, PELATIHAN, DAN PENGEMBANGAN PROFESI</p>
                                 <p class="text-sm sm:text-base font-bold uppercase tracking-wide mt-1">SEKOLAH RAKYAT TERINTEGRASI 2 KOTA PASURUAN</p>
                                 <p class="text-[10px] text-slate-700 mt-1">Jl. Erlangga Selatan No. 17 Kel. Purworejo, Kec. Purworejo, Kota Pasuruan, Prov. Jawa Timur 67115</p>
                                 <p class="text-[9px] text-slate-600">surel: srd_kotapasuruan@sr.kemensos.go.id, srmp_kotapasuruan@sr.kemensos.go.id, srma_kotapasuruan@sr.kemensos.go.id</p>
@@ -811,19 +814,19 @@
                         <!-- Keterangan Surat -->
                         <div class="text-center space-y-1 pt-2">
                             <h4 class="font-bold text-sm sm:text-base uppercase underline">LAPORAN ${state.reportJenisLaporan === 'keluar' ? 'TRANSAKSI BARANG KELUAR' : 'PENAMBAHAN BARANG MASUK'}</h4>
-                            <p class="text-xs text-slate-600 font-mono">Nomor: ${state.reportNoSurat || '(Belum diisi)'}</p>
+                            <p class="text-xs text-slate-600">Nomor: ${state.reportNoSurat || '(Belum diisi)'}</p>
                             <p class="text-xs text-slate-500">Periode: ${state.reportStartDate} s.d. ${state.reportEndDate}</p>
                         </div>
 
-                        <!-- Tabel Laporan -->
+                        <!-- Tabel Laporan (Tanpa ID) -->
                         <div class="overflow-x-auto pt-2">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr class="bg-slate-100 border-b border-slate-300 font-bold text-slate-700 uppercase">
                                         <th class="p-2.5 border border-slate-300 text-center w-10">No</th>
-                                        <th class="p-2.5 border border-slate-300">Tanggal / ID</th>
+                                        <th class="p-2.5 border border-slate-300">Tanggal</th>
                                         ${state.reportJenisLaporan === 'keluar' ? '<th class="p-2.5 border border-slate-300">Peminjam / Pengambil</th>' : ''}
-                                        <th class="p-2.5 border border-slate-300">ID & Nama Barang</th>
+                                        <th class="p-2.5 border border-slate-300">Nama Barang</th>
                                         <th class="p-2.5 border border-slate-300 text-center">Jumlah</th>
                                         ${state.reportJenisLaporan === 'keluar' ? '<th class="p-2.5 border border-slate-300">Jenis & Status</th>' : ''}
                                     </tr>
@@ -860,14 +863,9 @@
             return filteredData.map((item, idx) => `
                 <tr>
                     <td class="p-2.5 border border-slate-300 text-center">${idx + 1}</td>
-                    <td class="p-2.5 border border-slate-300 font-mono">
-                        ${state.reportJenisLaporan === 'keluar' ? item.tanggal + '<br><span class="text-[10px] text-slate-500">#' + item.idTransaksi + '</span>' : item.tanggal + '<br><span class="text-[10px] text-slate-500">#' + item.idInput + '</span>'}
-                    </td>
+                    <td class="p-2.5 border border-slate-300">${item.tanggal}</td>
                     ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300">${item.namaPengguna} (${item.nip})</td>` : ''}
-                    <td class="p-2.5 border border-slate-300">
-                        <span class="font-mono font-bold text-[10px] bg-slate-100 px-1 rounded">${item.idBarang}</span><br>
-                        ${item.namaBarang}
-                    </td>
+                    <td class="p-2.5 border border-slate-300">${item.namaBarang}</td>
                     <td class="p-2.5 border border-slate-300 text-center font-bold">${item.jumlah}</td>
                     ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300"><span class="font-semibold">${item.jenis}</span><br><span class="text-[10px] text-slate-500">${item.status}</span></td>` : ''}
                 </tr>
