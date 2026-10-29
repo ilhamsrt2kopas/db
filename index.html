@@ -896,9 +896,8 @@
         // 4. RIWAYAT
         function getFilteredLoans() {
             let loans = state.transaksi.filter(t => {
-                let isMyLoan = state.user.isAdmin || t.nip === state.user.nip;
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
-                return isMyLoan && isJenisPinjam;
+                return isJenisPinjam;
             });
 
             let query = (state.historySearchQuery || '').toLowerCase().trim();
