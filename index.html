@@ -120,18 +120,7 @@
             </h3>
             <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan transaksi:</p>
             
-            <div class="bg-slate-50 rounded-xl p-3 max-h-40 overflow-y-auto mb-4 border border-slate-100 space-y-2" id="modalItemList"></div>
-            
-            <div id="tujuanContainer" class="mb-4 space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Tujuan Penggunaan <span class="text-red-500">*</span></label>
-                    <input type="text" id="tujuanInput" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Keperluan Praktikum Lab Komputer">
-                </div>
-                <div id="applyAllTujuanWrapper" class="hidden items-center gap-2">
-                    <input type="checkbox" id="applyAllTujuan" class="w-4 h-4 text-orange-500 rounded border-slate-300 focus:ring-orange-500">
-                    <label for="applyAllTujuan" class="text-xs text-slate-700 font-medium">Gunakan tujuan ini untuk semua barang dalam transaksi ini</label>
-                </div>
-            </div>
+            <div class="bg-slate-50 rounded-xl p-3 max-h-72 overflow-y-auto mb-4 border border-slate-100 space-y-3" id="modalItemList"></div>
 
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Batal</button>
@@ -203,38 +192,6 @@
         };
 
         let realtimeChannel = null;
-
-        // Touch Swipe Gestures
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        document.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
-        }, false);
-
-        document.addEventListener('touchend', e => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, false);
-
-        function handleSwipe() {
-            if (!state.user) return;
-            const swipeThreshold = 60;
-            const mainTabs = ['dashboard', 'barang', 'gantipassword'];
-            let currentIndex = mainTabs.indexOf(state.activeTab);
-            
-            if (currentIndex !== -1) {
-                if (touchEndX < touchStartX - swipeThreshold) {
-                    if (currentIndex < mainTabs.length - 1) {
-                        switchTab(mainTabs[currentIndex + 1]);
-                    }
-                } else if (touchEndX > touchStartX + swipeThreshold) {
-                    if (currentIndex > 0) {
-                        switchTab(mainTabs[currentIndex - 1]);
-                    }
-                }
-            }
-        }
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -642,7 +599,7 @@
                                                         <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
                                                     </div>
                                                     <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-green-600">${t.jenis}</span></p>
-                                                    <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
+                                                    <p class="text-[10px] text-slate-500 mt-0.5 truncate"><span class="font-medium">${t.status}</span></p>
                                                 </div>
                                             </div>
                                         `).join('')}
@@ -1147,6 +1104,7 @@
                                             <th class="p-2.5 border border-slate-300">Nama Barang</th>
                                             <th class="p-2.5 border border-slate-300 text-center">Jumlah</th>
                                             ${state.reportJenisLaporan === 'keluar' ? '<th class="p-2.5 border border-slate-300">Jenis & Status</th>' : ''}
+                                            <th class="p-2.5 border border-slate-300 text-center">Sisa Stok</th>
                                         </tr>
                                     </thead>
                                     <tbody id="reportTableBody" class="divide-y divide-slate-200">
@@ -1193,20 +1151,25 @@
             if (filteredData.length === 0) {
                 return `
                     <tr>
-                        <td colspan="${state.reportJenisLaporan === 'keluar' ? '6' : '4'}" class="p-6 text-center text-slate-400 border border-slate-300">Tidak ada data transaksi pada rentang filter ini.</td>
+                        <td colspan="${state.reportJenisLaporan === 'keluar' ? '7' : '5'}" class="p-6 text-center text-slate-400 border border-slate-300">Tidak ada data transaksi pada rentang filter ini.</td>
                     </tr>
                 `;
             }
-            return filteredData.map((item, idx) => `
-                <tr>
-                    <td class="p-2.5 border border-slate-300 text-center">${idx + 1}</td>
-                    <td class="p-2.5 border border-slate-300 whitespace-nowrap w-[1%]">${item.tanggal}</td>
-                    ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300"><div class="font-medium">${item.namaPengguna}</div><div class="text-[10px] text-slate-600">${item.jabatan || 'Pegawai'}</div></td>` : ''}
-                    <td class="p-2.5 border border-slate-300">${item.namaBarang}</td>
-                    <td class="p-2.5 border border-slate-300 text-center font-bold">${item.jumlah}</td>
-                    ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300"><span class="font-semibold">${item.jenis}</span><br><span class="text-[10px] text-slate-500">${item.status}</span></td>` : ''}
-                </tr>
-            `).join('');
+            return filteredData.map((item, idx) => {
+                let targetBarang = state.barang.find(b => b.id === item.idBarang);
+                let sisaStok = targetBarang ? targetBarang.stok : '-';
+                return `
+                    <tr>
+                        <td class="p-2.5 border border-slate-300 text-center">${idx + 1}</td>
+                        <td class="p-2.5 border border-slate-300 whitespace-nowrap w-[1%]">${item.tanggal}</td>
+                        ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300"><div class="font-medium">${item.namaPengguna}</div><div class="text-[10px] text-slate-600">${item.jabatan || 'Pegawai'}</div></td>` : ''}
+                        <td class="p-2.5 border border-slate-300">${item.namaBarang}</td>
+                        <td class="p-2.5 border border-slate-300 text-center font-bold">${item.jumlah}</td>
+                        ${state.reportJenisLaporan === 'keluar' ? `<td class="p-2.5 border border-slate-300"><span class="font-semibold">${item.jenis}</span><br><span class="text-[10px] text-slate-500">${item.status}</span></td>` : ''}
+                        <td class="p-2.5 border border-slate-300 text-center font-bold">${sisaStok}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function handleReportBarangSearch(val) {
@@ -1558,45 +1521,68 @@
             pendingJenis = jenis;
             document.getElementById('modalTypeText').innerText = `Anda akan melakukan ${jenis} untuk barang berikut:`;
             
-            // Render items in modal with remove/delete buttons
-            updateModalItemList(selectedItems);
-
-            const tujuanContainer = document.getElementById('tujuanContainer');
-            const applyAllWrapper = document.getElementById('applyAllTujuanWrapper');
-            
-            if (jenis === 'Pinjam') {
-                tujuanContainer.classList.remove('hidden');
-                document.getElementById('tujuanInput').value = '';
-                if (selectedItems.length > 1) {
-                    applyAllWrapper.classList.remove('hidden');
-                    applyAllWrapper.classList.add('flex');
-                    document.getElementById('applyAllTujuan').checked = true;
-                } else {
-                    applyAllWrapper.classList.remove('flex');
-                    applyAllWrapper.classList.add('hidden');
-                }
-            } else {
-                tujuanContainer.classList.add('hidden');
-            }
+            updateModalItemList(selectedItems, jenis);
 
             document.getElementById('confirmModal').classList.remove('hidden');
             document.getElementById('confirmModal').classList.add('flex');
         }
 
-        function updateModalItemList(selectedItems) {
+        function updateModalItemList(selectedItems, jenis) {
             const listEl = document.getElementById('modalItemList');
             if (selectedItems.length === 0) {
                 listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Keranjang kosong.</p>';
                 return;
             }
-            listEl.innerHTML = selectedItems.map(i => `
-                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 text-sm gap-2">
-                    <span class="font-medium text-slate-800 truncate">${i.nama} <span class="text-xs text-slate-500 font-normal">(x${i.qty})</span></span>
-                    <button onclick="removeFromCartModal('${i.id}')" class="text-red-500 hover:text-red-700 p-1 text-xs font-bold shrink-0" title="Hapus item ini">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+            listEl.innerHTML = selectedItems.map((i, idx) => `
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                    <div class="flex justify-between items-center text-sm gap-2">
+                        <span class="font-bold text-slate-800 truncate">${i.nama} <span class="text-xs text-slate-500 font-normal">(x${i.qty})</span></span>
+                        <button onclick="removeFromCartModal('${i.id}')" class="text-red-500 hover:text-red-700 p-1 text-xs font-bold shrink-0" title="Hapus item ini">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    ${jenis === 'Pinjam' ? `
+                        <div class="space-y-1.5 pt-1 border-t border-slate-100">
+                            <input type="text" id="modalTujuan_${i.id}" oninput="handleTujuanInput(${idx}, this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Tujuan penggunaan barang ini *">
+                            ${idx === 0 && selectedItems.length > 1 ? `
+                                <label class="flex items-center gap-2 cursor-pointer pt-0.5">
+                                    <input type="checkbox" id="applyAllCheckbox" onchange="handleApplyAllTujuan(this.checked, '${i.id}')" class="w-3.5 h-3.5 text-orange-500 rounded border-slate-300 focus:ring-orange-500">
+                                    <span class="text-[11px] font-medium text-slate-600">Gunakan tujuan yang sama untuk barang lainnya</span>
+                                </label>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             `).join('');
+        }
+
+        function handleTujuanInput(idx, val) {
+            if (idx === 0) {
+                const applyAllCb = document.getElementById('applyAllCheckbox');
+                if (applyAllCb && applyAllCb.checked) {
+                    applyToAllTujuanFields(val);
+                }
+            }
+        }
+
+        function handleApplyAllTujuan(isChecked, firstId) {
+            if (isChecked) {
+                const firstInput = document.getElementById(`modalTujuan_${firstId}`);
+                if (firstInput) {
+                    applyToAllTujuanFields(firstInput.value);
+                }
+            }
+        }
+
+        function applyToAllTujuanFields(val) {
+            for (let id in state.cart) {
+                if (state.cart[id] > 0) {
+                    const inputEl = document.getElementById(`modalTujuan_${id}`);
+                    if (inputEl) {
+                        inputEl.value = val;
+                    }
+                }
+            }
         }
 
         function removeFromCartModal(id) {
@@ -1617,8 +1603,7 @@
                 return;
             }
 
-            updateModalItemList(selectedItems);
-            // Refresh main table as well
+            updateModalItemList(selectedItems, pendingJenis);
             const tbody = document.getElementById('barangTableBody');
             if (tbody) tbody.innerHTML = renderTableRows(getFilteredBarang());
         }
@@ -1629,23 +1614,25 @@
         }
 
         async function executeTransaction() {
-            let tujuanVal = '';
-            if (pendingJenis === 'Pinjam') {
-                tujuanVal = document.getElementById('tujuanInput').value.trim();
-                if (!tujuanVal) {
-                    showToast("Tujuan penggunaan wajib diisi untuk peminjaman!", true);
-                    document.getElementById('tujuanInput').focus();
-                    return;
+            let itemsPayload = [];
+            for (let id in state.cart) {
+                let qty = state.cart[id];
+                if (qty > 0) {
+                    let tujuanVal = '';
+                    if (pendingJenis === 'Pinjam') {
+                        const inputEl = document.getElementById(`modalTujuan_${id}`);
+                        tujuanVal = inputEl ? inputEl.value.trim() : '';
+                        if (!tujuanVal) {
+                            showToast("Tujuan penggunaan untuk setiap barang wajib diisi!", true);
+                            if (inputEl) inputEl.focus();
+                            return;
+                        }
+                    }
+                    itemsPayload.push({ id: id, jumlah: qty, tujuan: tujuanVal });
                 }
             }
 
             closeConfirmModal();
-            let itemsPayload = [];
-            for (let id in state.cart) {
-                if (state.cart[id] > 0) {
-                    itemsPayload.push({ id: id, jumlah: state.cart[id] });
-                }
-            }
 
             showLoading("Memproses Transaksi...");
             try {
@@ -1664,13 +1651,6 @@
                 
                 const timestampStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 
-                let statusTrx = "";
-                if (pendingJenis === "Ambil") {
-                    statusTrx = `Selesai pada ${timestampStr}`;
-                } else {
-                    statusTrx = `Dipinjam untuk ${tujuanVal} (${timestampStr})`;
-                }
-
                 let transaksiPayload = [];
 
                 for (let itm of itemsPayload) {
@@ -1681,6 +1661,13 @@
                             .from('barang')
                             .update({ stok: newStok })
                             .eq('id_barang', itm.id);
+
+                        let statusTrx = "";
+                        if (pendingJenis === "Ambil") {
+                            statusTrx = `Diambil pada ${timestampStr}`;
+                        } else {
+                            statusTrx = `Dipinjam pada ${timestampStr} (Keperluan: ${itm.tujuan})`;
+                        }
 
                         const customTrxId = `K-${datePrefix}${String(seq).padStart(4, '0')}`;
                         seq++;
@@ -1748,13 +1735,17 @@
                 const now = new Date();
                 const timestampStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 
+                // Ekstraksi keperluan dari status transaksi sebelumnya secara aman
+                let keperluanMatch = (trxObj.status || '').match(/\(Keperluan:\s*([^)]+)\)/);
+                let keperluanStr = keperluanMatch ? ` (Keperluan: ${keperluanMatch[1]})` : '';
+
                 let newStatus = "";
                 if (qty === trxObj.jumlah) {
                     newStatus = state.user.isAdmin ? 
-                        `Dikembalikan oleh Admin (${state.user.nama}) pada tanggal ${timestampStr}` : 
-                        `Dikembalikan oleh peminjam pada tanggal ${timestampStr}`;
+                        `Dikembalikan oleh Admin pada ${timestampStr}${keperluanStr}` : 
+                        `Dikembalikan oleh peminjam pada ${timestampStr}${keperluanStr}`;
                 } else {
-                    newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}`;
+                    newStatus = `Kembali sebagian (${qty}/${trxObj.jumlah}) pada ${timestampStr}${keperluanStr}`;
                 }
 
                 await supabaseClient
