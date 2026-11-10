@@ -40,31 +40,26 @@
     </script>
     <style>
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printableReport, #printableReport * {
-                visibility: visible;
+            body * { visibility: hidden; }
+            #printableLetter, #printableLetter *, #printableReport, #printableReport * { visibility: visible; }
+            #printableLetter {
+                position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 10mm; background: white;
             }
             #printableReport {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                margin: 0;
-                padding: 15mm;
-                background: white;
+                position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 15mm; background: white;
+                border: none !important; box-shadow: none !important;
             }
-            .no-print {
-                display: none !important;
-            }
+            .page-break { page-break-after: always; break-after: page; }
+            .no-print { display: none !important; }
+            /* Mencegah blok tanda tangan terpotong di tengah halaman */
+            .signature-block-container { page-break-inside: avoid; break-inside: avoid; }
+            /* Agar laporan panjang bisa tercetak multi halaman (hanya saat halaman laporan aktif) */
+            html:has(#printableReport), html:has(#printableReport) body { height: auto !important; overflow: auto !important; }
+            body:has(#printableReport) #mainContent { padding: 0 !important; max-width: none !important; overflow: visible !important; }
         }
 
         /* Mencegah halaman utama ikut tergulir seluruhnya */
-        html, body {
-            height: 100vh;
-            overflow: hidden;
-        }
+        html, body { height: 100vh; overflow: hidden; }
 
         /* Panel collapsible dan tata letak responsif */
         details > summary { list-style: none; }
@@ -72,6 +67,8 @@
         details > summary::marker { content: ""; }
         details > summary .collapse-chevron { transition: transform .2s ease; }
         details[open] > summary .collapse-chevron { transform: rotate(180deg); }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         #mainContent, #mainContent section, #mainContent .bg-white { min-width: 0; }
         #mainContent .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
         #mainContent table { min-width: 100%; }
@@ -79,16 +76,10 @@
             #mainContent th, #mainContent td { padding: .55rem; }
             #mainContent input, #mainContent select, #mainContent button { max-width: 100%; }
         }
-        #printableReport th:nth-child(2), #printableReport td:nth-child(2) {
+        /* Khusus tabel laporan barang: kolom ke-2 (tanggal) tidak membungkus */
+        #printableReport.report-barang th:nth-child(2), #printableReport.report-barang td:nth-child(2) {
             white-space: nowrap;
             width: 1%;
-        }
-        @media print {
-            html, body { height: auto !important; overflow: auto !important; }
-            .no-print { display: none !important; }
-            #mainContent { padding: 0 !important; max-width: none !important; overflow: visible !important; }
-            #printableReport { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 15mm; background: white; border: none !important; box-shadow: none !important; }
-            #printableReport th:nth-child(2), #printableReport td:nth-child(2) { white-space: nowrap; width: 1%; }
         }
     </style>
 </head>
@@ -111,17 +102,87 @@
 
     <!-- App Root Container -->
     <div id="app" class="flex-1 flex flex-col h-full overflow-hidden"></div>
+    <!-- Modal Konfirmasi Kustom di Tengah Layar -->
+    <div id="customConfirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closeCustomConfirm(false)">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Konfirmasi Aksi
+            </h3>
+            <p id="customConfirmText" class="text-xs text-slate-600">Apakah Anda yakin?</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeCustomConfirm(false)" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">Batal</button>
+                <button id="customConfirmYesBtn" class="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-semibold">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Modal Konfirmasi Transaksi & Tujuan -->
-    <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <!-- Modal Penandatanganan Dokumen -->
+    <div id="signModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeSignModal()">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-signature text-orange-500"></i> Penandatanganan Dokumen
+            </h3>
+            <div id="signModalContent" class="space-y-3"></div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeSignModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold">Batal</button>
+                <button onclick="triggerSignConfirmation()" class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-semibold">Proses Tanda Tangan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Input Pengembalian / Penyelesaian Siswa -->
+    <div id="returnInputModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closeReturnInputModal()">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-green-600"></i> Catatan Kembali ke Sekolah
+            </h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tanggal Kembali (Wajib)</label>
+                    <input type="date" id="returnDateInput" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Jam Kembali (Wajib)</label>
+                    <input type="time" id="returnTimeInput" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Pengantar (Wajib)</label>
+                    <input type="text" id="returnPengantarInput" required placeholder="Nama orang tua / pengantar..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Catatan (Opsional)</label>
+                    <textarea id="returnCatatanInput" rows="2" placeholder="Catatan tambahan..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeReturnInputModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold">Batal</button>
+                <button onclick="submitStudentReturn()" class="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl text-xs font-semibold">Simpan & Selesaikan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Cetak Surat Perizinan -->
+    <div id="printLetterModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closePrintLetterModal()">
+        <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl max-h-[95vh] overflow-y-auto space-y-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b pb-3 no-print">
+                <h3 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-print text-orange-500"></i> Cetak Dokumen Perizinan & Keterangan Kembali</h3>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="px-4 py-2 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition"><i class="fa-solid fa-print"></i> Cetak Dokumen</button>
+                    <button onclick="closePrintLetterModal()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition">Tutup</button>
+                </div>
+            </div>
+            <div id="printableLetter" class="bg-white p-6 space-y-6 text-slate-800 text-xs sm:text-sm font-sans border border-slate-100 rounded-xl"></div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Transaksi Barang -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeConfirmModal()">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
                 <i class="fa-solid fa-circle-question text-orange-500"></i> Konfirmasi Transaksi
             </h3>
             <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan transaksi:</p>
-            
             <div class="bg-slate-50 rounded-xl p-3 max-h-72 overflow-y-auto mb-4 border border-slate-100 space-y-3" id="modalItemList"></div>
-
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Batal</button>
                 <button onclick="executeTransaction()" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Ya, Lanjutkan</button>
@@ -129,9 +190,9 @@
         </div>
     </div>
 
-    <!-- Modal Pengembalian -->
-    <div id="returnModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+    <!-- Modal Pengembalian Barang -->
+    <div id="returnModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeReturnModal()">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onclick="event.stopPropagation()">
             <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
                 <i class="fa-solid fa-arrow-rotate-left text-green-600"></i> Pengembalian Barang
             </h3>
@@ -154,50 +215,81 @@
 
     <script>
         const CATEGORIES_LIST = [
-            'ATK',
-            'Elektronik/Listrik',
-            'Kebersihan',
-            'Kesehatan',
-            'Konsumsi',
-            'Olahraga',
-            'Lainnya',
-            'Kendaraan',
-            'Kunci'
+            'ATK', 'Elektronik/Listrik', 'Kebersihan', 'Kesehatan', 'Konsumsi', 'Olahraga', 'Lainnya', 'Kendaraan', 'Kunci'
         ];
 
         let state = {
             user: JSON.parse(localStorage.getItem('sr_user')) || null,
+            // Data
             barang: [],
             transaksi: [],
             masuk: [],
-            cart: {}, 
-            addStockCart: {}, 
-            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ], 
+            siswa: [],
+            penggunaList: [],
+            perizinanSiswa: [],
+            // Navigasi
             activeTab: 'dashboard',
-            barangSubmenuOpen: true,
+            perizinanSubTab: 'aktif',
+            // Modul barang
+            cart: {},
+            addStockCart: {},
+            newItemList: [ { nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false } ],
             searchQuery: '',
             addStockSearchQuery: '',
             historySearchQuery: '',
             selectedCategory: 'Semua',
             sortColumn: 'nama',
             sortAsc: true,
-            mobileMenuOpen: false,
-            // Report Filter State
-            reportNoSurat: '',
-            reportJenisLaporan: 'keluar', 
+            // Modul laporan barang
+            reportJenisLaporan: 'keluar',
             reportStartDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
             reportEndDate: new Date().toISOString().split('T')[0],
-            reportBarangQuery: '', 
-            reportJenisTrx: 'semua' 
+            reportBarangQuery: '',
+            reportJenisTrx: 'semua',
+            // Modul perizinan
+            izinKeperluan: 'meninggalkan sekolah',
+            izinKeterangan: '',
+            izinWaktuKeluar: '',
+            izinWaktuKembali: '',
+            isLockedKeperluan: false,
+            izinSelectedSiswa: [],
+            izinSearchSiswa: '',
+            // Filter laporan perizinan
+            reportIzinJenis: 'semua',
+            reportIzinStatus: 'semua',
+            reportIzinFilterOpen: false
         };
 
-        let realtimeChannel = null;
+        const BARANG_TAB_IDS = ['barang', 'tambahstok', 'pengembalian', 'riwayat'];
+        const LAPORAN_TAB_IDS = ['laporanbarang', 'laporanperizinan'];
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
             });
         }
+
+        let realtimeChannel = null;
+        let confirmCallback = null;
+        let activeSignIdIzin = null;
+        let activeReturnIdIzin = null;
+
+        function showCustomConfirm(text, onYes) {
+            document.getElementById('customConfirmText').innerText = text;
+            confirmCallback = onYes;
+            document.getElementById('customConfirmModal').classList.remove('hidden');
+            document.getElementById('customConfirmModal').classList.add('flex');
+        }
+
+        function closeCustomConfirm(result) {
+            document.getElementById('customConfirmModal').classList.remove('flex');
+            document.getElementById('customConfirmModal').classList.add('hidden');
+            if (result && typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            confirmCallback = null;
+        }
+        document.getElementById('customConfirmYesBtn').onclick = () => closeCustomConfirm(true);
 
         function showLoading(text = "Memuat Data...") {
             document.getElementById('loadingText').innerText = text;
@@ -210,37 +302,69 @@
             document.getElementById('loadingOverlay').classList.add('hidden');
         }
 
+        function formatIndonesianDateTime(isoString) {
+            if (!isoString || isoString === '-') return '-';
+            const clean = isoString.replace('T', ' ');
+            const date = new Date(clean);
+            if (isNaN(date.getTime())) return isoString;
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const dayName = days[date.getDay()];
+            const dayNum = String(date.getDate()).padStart(2, '0');
+            const monthName = months[date.getMonth()];
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${dayName}, ${dayNum} ${monthName} ${year} - ${hours}:${minutes}`;
+        }
+
+        function getJenjang(kelas) {
+            const num = parseInt(kelas) || 0;
+            if (num >= 1 && num <= 6) return 'SD';
+            if (num >= 7 && num <= 9) return 'SMP';
+            if (num >= 10 && num <= 12) return 'SMA';
+            return 'Lainnya';
+        }
+
+        function sortStudents(a, b) {
+            const kA = parseInt(a.kelas) || 0;
+            const kB = parseInt(b.kelas) || 0;
+            if (kA !== kB) return kA - kB;
+            const rA = String(a.rombel || '').localeCompare(String(b.rombel || ''), undefined, {numeric: true});
+            if (rA !== 0) return rA;
+            return String(a.nama || '').localeCompare(String(b.nama || ''));
+        }
+
         async function fetchAppData(silent = false) {
             if (!silent) showLoading("Mengambil data dari Database...");
-            
             state.cart = {};
             state.addStockCart = {};
 
             try {
-                const { data: dataBarang, error: errBarang } = await supabaseClient
-                    .from('barang')
-                    .select('*')
-                    .order('nama_barang', { ascending: true });
+                const { data: dataBarang, error: errBarang } = await supabaseClient.from('barang').select('*').order('nama_barang', { ascending: true });
                 if (errBarang) throw errBarang;
 
-                const { data: dataTrx, error: errTrx } = await supabaseClient
-                    .from('transaksi')
-                    .select('*')
-                    .order('id_transaksi', { ascending: false });
+                const { data: dataTrx, error: errTrx } = await supabaseClient.from('transaksi').select('*').order('id_transaksi', { ascending: false });
                 if (errTrx) throw errTrx;
 
-                const { data: dataMasuk, error: errMasuk } = await supabaseClient
-                    .from('masuk')
-                    .select('*')
-                    .order('id_input', { ascending: false });
+                const { data: dataMasuk, error: errMasuk } = await supabaseClient.from('masuk').select('*').order('id_input', { ascending: false });
                 if (errMasuk) throw errMasuk;
 
-                const { data: dataPengguna } = await supabaseClient
-                    .from('pengguna')
-                    .select('nip, nama, jabatan');
-                const penggunaByNip = Object.fromEntries((dataPengguna || []).map(p => [
-                    String(p.nip || ''), { nama: p.nama || '', jabatan: p.jabatan || 'Pegawai' }
+                const { data: dataSiswa, error: errSiswa } = await supabaseClient.from('siswa').select('*');
+                if (errSiswa) console.warn("Tabel siswa belum tersedia:", errSiswa);
+
+                const { data: dataIzin, error: errIzin } = await supabaseClient.from('perizinan_siswa').select('*').order('id_izin', { ascending: false });
+                if (errIzin) console.warn("Tabel perizinan_siswa belum tersedia:", errIzin);
+
+                const { data: dataPengguna } = await supabaseClient.from('pengguna').select('nip, nama, jabatan, tugas');
+                state.penggunaList = dataPengguna || [];
+                const penggunaByNip = Object.fromEntries((state.penggunaList).map(p => [
+                    String(p.nip || ''), { nama: p.nama || '', jabatan: p.jabatan || 'Pegawai', tugas: p.tugas || '' }
                 ]));
+
+                if (state.user && penggunaByNip[String(state.user.nip || '')]) {
+                    state.user.tugas = penggunaByNip[String(state.user.nip || '')].tugas || state.user.tugas || '';
+                }
 
                 state.barang = (dataBarang || []).map(b => ({
                     id: b.id_barang || b.id,
@@ -251,6 +375,17 @@
                     hanyaPinjam: Boolean(b.hanya_pinjam)
                 }));
 
+                state.siswa = (dataSiswa || []).map(s => ({
+                    nisn: String(s.nisn || ''),
+                    nama: String(s.nama_siswa || ''),
+                    kelas: String(s.kelas || ''),
+                    rombel: String(s.rombel || ''),
+                    tempatLahir: String(s.tempat_lahir || ''),
+                    tanggalLahir: String(s.tanggal_lahir || ''),
+                    namaOrtuWali: String(s.nama_ortu_wali || ''),
+                    alamat: String(s.alamat || '')
+                })).sort(sortStudents);
+
                 const todayStr = new Date().toISOString().split('T')[0];
                 state.transaksi = (dataTrx || []).map(t => {
                     const idTrxStr = String(t.id_transaksi || '');
@@ -258,10 +393,7 @@
                     if (idTrxStr.length >= 8) {
                         const cleanId = idTrxStr.replace(/^K-/, '');
                         if (cleanId.length >= 6) {
-                            const yy = '20' + cleanId.slice(0, 2);
-                            const mm = cleanId.slice(2, 4);
-                            const dd = cleanId.slice(4, 6);
-                            trxDateStr = `${yy}-${mm}-${dd}`;
+                            trxDateStr = `20${cleanId.slice(0, 2)}-${cleanId.slice(2, 4)}-${cleanId.slice(4, 6)}`;
                         }
                     }
                     return {
@@ -300,6 +432,27 @@
                     };
                 });
 
+                state.perizinanSiswa = (dataIzin || []).map(i => {
+                    const siswaObj = state.siswa.find(s => s.nisn === String(i.nisn));
+                    return {
+                        idIzin: i.id_izin || i.id,
+                        nip: i.nip || '',
+                        nisn: i.nisn || '',
+                        namaSiswa: siswaObj ? siswaObj.nama : 'Siswa (' + i.nisn + ')',
+                        kelas: i.kelas || (siswaObj ? siswaObj.kelas : '-'),
+                        rombel: siswaObj ? siswaObj.rombel : '',
+                        keperluan: i.keperluan || '-',
+                        keterangan: i.keterangan || '-',
+                        waktuKeluar: i.waktu_keluar || '-',
+                        waktuKembali: i.waktu_kembali || '-',
+                        realisasi: i.realisasi || '-',
+                        returnDetails: normalizeReturnDetails(i.return_details ?? i.returnDetails),
+                        receiverInfo: normalizeReceiverInfo(i.receiver_info ?? i.receiverInfo),
+                        status: i.status || 'Pending',
+                        signatures: parseJsonField(i.signatures) || {}
+                    };
+                });
+
                 render();
             } catch (err) {
                 console.error("Database error:", err);
@@ -310,14 +463,13 @@
         }
 
         function initRealtimeListener() {
-            if (realtimeChannel) {
-                supabaseClient.removeChannel(realtimeChannel);
-            }
-
+            if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
             realtimeChannel = supabaseClient.channel('public-db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'barang' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'transaksi' }, () => fetchAppData(true))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'masuk' }, () => fetchAppData(true))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'siswa' }, () => fetchAppData(true))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'perizinan_siswa' }, () => fetchAppData(true))
                 .subscribe();
         }
 
@@ -325,16 +477,18 @@
             const app = document.getElementById('app');
             if (!state.user) {
                 app.innerHTML = renderLoginView();
-            } else {
-                app.innerHTML = renderMainLayout();
-                if (state.activeTab === 'dashboard') {
-                    renderDashboardContent();
-                } else if (['barang', 'tambahstok', 'pengembalian', 'riwayat', 'cetaklaporan'].includes(state.activeTab)) {
-                    renderBarangContent();
-                } else if (state.activeTab === 'gantipassword') {
-                    renderPasswordContent();
-                }
+                return;
             }
+            // Pengaman: sub menu khusus admin
+            if (state.activeTab === 'tambahstok' && !state.user.isAdmin) state.activeTab = 'barang';
+
+            app.innerHTML = renderMainLayout();
+            const tab = state.activeTab;
+            if (tab === 'dashboard') renderDashboardContent();
+            else if (tab === 'perizinan') renderPerizinanContent();
+            else if (BARANG_TAB_IDS.includes(tab) || tab === 'laporanbarang') renderBarangContent();
+            else if (tab === 'laporanperizinan') renderLaporanPerizinanContent();
+            else if (tab === 'gantipassword') renderPasswordContent();
         }
 
         function renderLoginView() {
@@ -376,26 +530,20 @@
             e.preventDefault();
             const nip = document.getElementById('nip').value.trim();
             const password = document.getElementById('password').value.trim();
-            
             showLoading("Memverifikasi Login...");
             try {
-                const { data, error } = await supabaseClient
-                    .from('pengguna')
-                    .select('*')
-                    .eq('nip', nip)
-                    .eq('password', password)
-                    .maybeSingle();
-
+                const { data, error } = await supabaseClient.from('pengguna').select('*').eq('nip', nip).eq('password', password).maybeSingle();
                 if (error) throw error;
-
                 if (data) {
                     const userData = {
                         nip: data.nip,
                         nama: data.nama,
                         jabatan: data.jabatan,
+                        tugas: data.tugas || '',
                         isAdmin: Boolean(data.is_admin)
                     };
                     state.user = userData;
+                    state.activeTab = 'dashboard';
                     localStorage.setItem('sr_user', JSON.stringify(userData));
                     showToast("Login berhasil!");
                     await fetchAppData();
@@ -420,23 +568,48 @@
             state.user = null;
             state.cart = {};
             state.addStockCart = {};
+            state.activeTab = 'dashboard';
             render();
         }
 
-        function renderMainLayout() {
-            const barangTabs = [
+        // --- NAVIGASI ---
+        function getBarangTabs() {
+            return [
                 { id: 'barang', label: 'Daftar Barang', icon: 'fa-boxes-stacked' },
                 ...(state.user.isAdmin ? [{ id: 'tambahstok', label: 'Tambah Stok', icon: 'fa-circle-plus' }] : []),
                 { id: 'pengembalian', label: 'Pengembalian', icon: 'fa-arrow-rotate-left' },
-                { id: 'riwayat', label: 'Riwayat', icon: 'fa-list-check' },
-                { id: 'cetaklaporan', label: 'Cetak Laporan', icon: 'fa-file-lines' }
+                { id: 'riwayat', label: 'Riwayat', icon: 'fa-list-check' }
             ];
+        }
 
-            const isBarangSection = barangTabs.some(tab => tab.id === state.activeTab);
+        function getLaporanTabs() {
+            return [
+                { id: 'laporanbarang', label: 'Laporan Barang', icon: 'fa-boxes-packing' },
+                { id: 'laporanperizinan', label: 'Laporan Perizinan', icon: 'fa-id-badge' }
+            ];
+        }
+
+        function getMainTabs() {
+            const at = state.activeTab;
+            return [
+                { label: 'Dasbor', short: 'Dasbor', icon: 'fa-chart-pie', target: 'dashboard', active: at === 'dashboard' },
+                { label: 'Perizinan Siswa', short: 'Perizinan', icon: 'fa-id-badge', target: 'perizinan', active: at === 'perizinan' },
+                { label: 'Inventaris & Modul', short: 'Inventaris', icon: 'fa-boxes-stacked', target: 'barang', active: BARANG_TAB_IDS.includes(at) },
+                { label: 'Laporan', short: 'Laporan', icon: 'fa-file-lines', target: 'laporanbarang', active: LAPORAN_TAB_IDS.includes(at) },
+                { label: 'Profil & Akun', short: 'Profil', icon: 'fa-user-circle', target: 'gantipassword', active: at === 'gantipassword' }
+            ];
+        }
+
+        function renderMainLayout() {
+            const mainTabs = getMainTabs();
+            let subTabs = null;
+            let subTitle = '';
+            if (BARANG_TAB_IDS.includes(state.activeTab)) { subTabs = getBarangTabs(); subTitle = 'Submenu Inventaris'; }
+            else if (LAPORAN_TAB_IDS.includes(state.activeTab)) { subTabs = getLaporanTabs(); subTitle = 'Submenu Laporan'; }
 
             return `
                 <div class="h-full flex flex-col bg-slate-50 overflow-hidden">
-                    <header class="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 flex items-center justify-between shrink-0 z-30">
+                    <header class="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 flex items-center justify-between shrink-0 z-30 no-print">
                         <div class="flex items-center gap-3 min-w-0">
                             <div class="w-9 h-9 bg-orange-500 text-white rounded-xl flex items-center justify-center font-bold shadow-sm shrink-0"><i class="fa-solid fa-graduation-cap"></i></div>
                             <div class="min-w-0">
@@ -444,27 +617,26 @@
                                 <p class="text-[10px] sm:text-xs text-orange-600 font-semibold">Kota Pasuruan</p>
                             </div>
                         </div>
-                        <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data" aria-label="Refresh data"><i class="fa-solid fa-rotate-right"></i></button>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium text-slate-600 hidden sm:inline">Halo, <b>${state.user.nama}</b></span>
+                            <button onclick="fetchAppData()" class="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition" title="Refresh Data" aria-label="Refresh data"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
                     </header>
 
                     <div class="flex-1 flex overflow-hidden">
-                        <!-- SIDEBAR DENGAN WARNA KOMPLEMENTER (SLATE-900) -->
-                        <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 shrink-0 p-4 space-y-2 z-20 text-slate-200">
+                        <!-- SIDEBAR DESKTOP -->
+                        <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 shrink-0 p-4 space-y-2 z-20 text-slate-200 overflow-y-auto no-print">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1">Menu Utama</p>
-                            <button onclick="switchTab('dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition ${state.activeTab === 'dashboard' ? 'bg-orange-500 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
-                                <i class="fa-solid fa-chart-pie w-5"></i><span>Dasbor</span>
-                            </button>
-                            <button onclick="switchTab('barang')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition ${isBarangSection ? 'bg-orange-500 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
-                                <i class="fa-solid fa-boxes-stacked w-5"></i><span>Inventaris & Modul</span>
-                            </button>
-                            <button onclick="switchTab('gantipassword')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition ${state.activeTab === 'gantipassword' ? 'bg-orange-500 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
-                                <i class="fa-solid fa-user-circle w-5"></i><span>Profil & Akun</span>
-                            </button>
+                            ${mainTabs.map(tab => `
+                                <button onclick="switchTab('${tab.target}')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition ${tab.active ? 'bg-orange-500 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
+                                    <i class="fa-solid ${tab.icon} w-5"></i><span>${tab.label}</span>
+                                </button>
+                            `).join('')}
 
-                            ${isBarangSection ? `
+                            ${subTabs ? `
                                 <div class="pt-4 mt-4 border-t border-slate-800 space-y-1">
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-orange-400 px-3 mb-1">Submenu Barang</p>
-                                    ${barangTabs.map(tab => `
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-orange-400 px-3 mb-1">${subTitle}</p>
+                                    ${subTabs.map(tab => `
                                         <button onclick="switchTab('${tab.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${state.activeTab === tab.id ? 'bg-orange-500/20 text-orange-400 font-bold border border-orange-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
                                             <i class="fa-solid ${tab.icon} w-4"></i><span>${tab.label}</span>
                                         </button>
@@ -474,12 +646,12 @@
                         </aside>
 
                         <!-- KONTEN UTAMA -->
-                        <div class="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300">
+                        <div class="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 min-w-0">
                             <!-- SUBNAV KHUSUS SMARTPHONE (HORIZONTAL) -->
-                            ${isBarangSection ? `
-                                <nav aria-label="Submenu Barang" class="md:hidden bg-white border-b border-slate-200 px-2 py-2 shrink-0 z-20">
+                            ${subTabs ? `
+                                <nav aria-label="${subTitle}" class="md:hidden bg-white border-b border-slate-200 px-2 py-2 shrink-0 z-20 no-print">
                                     <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                                        ${barangTabs.map(tab => `
+                                        ${subTabs.map(tab => `
                                             <button onclick="switchTab('${tab.id}')" class="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${state.activeTab === tab.id ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 bg-slate-50'}">
                                                 <i class="fa-solid ${tab.icon}"></i><span>${tab.label}</span>
                                             </button>
@@ -492,21 +664,15 @@
                         </div>
                     </div>
 
-                    <!-- NAVIGASI BAWAH KHUSUS SMARTPHONE -->
+                    <!-- NAVIGASI BAWAH SMARTPHONE -->
                     <nav aria-label="Navigasi utama smartphone" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_24px_rgba(15,23,42,0.08)] no-print">
-                        <div class="max-w-xl mx-auto grid grid-cols-3 gap-1 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                            <button onclick="switchTab('dashboard')" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${state.activeTab === 'dashboard' ? 'text-orange-600 bg-orange-50' : 'text-slate-500'}">
-                                <i class="fa-solid fa-chart-pie text-lg"></i>
-                                <span>Dasbor</span>
-                            </button>
-                            <button onclick="switchTab('barang')" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${isBarangSection ? 'text-orange-600 bg-orange-50' : 'text-slate-500'}">
-                                <i class="fa-solid fa-boxes-stacked text-lg"></i>
-                                <span>Barang</span>
-                            </button>
-                            <button onclick="switchTab('gantipassword')" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${state.activeTab === 'gantipassword' ? 'text-orange-600 bg-orange-50' : 'text-slate-500'}">
-                                <i class="fa-solid fa-user-circle text-lg"></i>
-                                <span>Profil</span>
-                            </button>
+                        <div class="max-w-xl mx-auto grid grid-cols-5 gap-1 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                            ${mainTabs.map(tab => `
+                                <button onclick="switchTab('${tab.target}')" class="flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[9px] font-semibold transition ${tab.active ? 'text-orange-600 bg-orange-50' : 'text-slate-500'}">
+                                    <i class="fa-solid ${tab.icon} text-base"></i>
+                                    <span class="truncate w-full text-center">${tab.short}</span>
+                                </button>
+                            `).join('')}
                         </div>
                     </nav>
                 </div>
@@ -515,34 +681,81 @@
 
         function switchTab(tab) {
             state.activeTab = tab;
-            state.mobileMenuOpen = false;
             render();
         }
 
+        // --- DASBOR ---
         function getAllCategoriesStats() {
-            return CATEGORIES_LIST.map(cat => {
-                let items = state.barang.filter(b => b.kategori === cat);
-                return {
-                    category: cat,
-                    itemCount: items.length
-                };
-            });
+            return CATEGORIES_LIST.map(cat => ({
+                category: cat,
+                itemCount: state.barang.filter(b => b.kategori === cat).length
+            }));
         }
 
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
-            const todayTrx = state.transaksi.filter(t => t.isToday);
-            
+            const activePerizinan = state.perizinanSiswa
+                .filter(p => !isIzinSelesai(p))
+                .sort((a, b) => (canUserSignNow(b) ? 1 : 0) - (canUserSignNow(a) ? 1 : 0));
             const activeLoans = state.transaksi.filter(t => {
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
                 let isUnreturned = !(t.status || '').toLowerCase().includes('dikembalikan');
                 return isJenisPinjam && isUnreturned;
             });
+            const todayAmbil = state.transaksi.filter(t => t.isToday && (t.jenis || '').toLowerCase().includes('ambil'));
 
-            const todayAmbil = todayTrx.filter(t => (t.jenis || '').toLowerCase().includes('ambil'));
-            
             main.innerHTML = `
                 <div class="h-full flex flex-col overflow-y-auto space-y-6 pr-1">
+                    <!-- Siswa yang sedang izin keluar -->
+                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-id-badge text-orange-500"></i> Siswa yang Sedang Izin Keluar
+                            </h3>
+                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${activePerizinan.length} Siswa</span>
+                        </div>
+                        <div class="overflow-y-auto max-h-60 pr-1">
+                            ${activePerizinan.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Tidak ada siswa yang sedang izin keluar.</p>' : `
+                                <div class="space-y-3">
+                                    ${activePerizinan.map(p => {
+                                        let sigs = p.signatures || {};
+                                        let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
+                                        const canSign = canUserSignNow(p);
+                                        return `
+                                            <div class="p-3 bg-slate-50 rounded-xl border ${canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100'} flex items-center justify-between gap-2">
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${p.namaSiswa} <span class="text-xs text-orange-600 font-medium">(Kelas ${p.kelas}-${p.rombel || '-'})</span></p>
+                                                    <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">${getIzinStatusLabel(p)}</span>
+                                                        ${Object.entries(sigs).map(([role, sig]) => `
+                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-1.5 shrink-0">
+                                                    ${canSign ? `
+                                                        <button onclick="openSignModal('${p.idIzin}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-medium transition" title="Tanda Tangan">
+                                                            <i class="fa-solid fa-signature"></i> <span class="hidden sm:inline">Tanda Tangan</span>
+                                                        </button>
+                                                    ` : ''}
+                                                    <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px] font-medium transition" title="Cetak Surat">
+                                                        <i class="fa-solid fa-print"></i>
+                                                    </button>
+                                                    ${allSigned ? `
+                                                        <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-medium transition">
+                                                            Kembali
+                                                        </button>
+                                                    ` : ''}
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Barang yang sedang dipinjam -->
                         <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
@@ -668,7 +881,1075 @@
             });
         }
 
-        // --- RENDER CONTENT BERDASARKAN SUB-TAB BARANG ---
+        // --- PERIZINAN SISWA ---
+        function renderPerizinanContent() {
+            const main = document.getElementById('mainContent');
+            const userTugas = tugasSource(state.user).toLowerCase();
+
+            const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'petugas kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh'];
+            const isSigner = state.user.isAdmin || allPossibleRoles.some(role => userTugas.includes(role));
+
+            let perizinanTabs = [
+                { id: 'persetujuan', label: 'Persetujuan' },
+                { id: 'aktif', label: 'Aktif' },
+                { id: 'riwayat', label: 'Riwayat' }
+            ];
+
+            if (!perizinanTabs.some(t => t.id === state.perizinanSubTab)) {
+                state.perizinanSubTab = isSigner ? 'persetujuan' : 'aktif';
+            }
+
+            let displayedPerizinan = state.perizinanSiswa.filter(p => {
+                let sigs = p.signatures || {};
+                let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
+                let isReturned = String(p.status || '').toLowerCase().includes('selesai') || String(p.status || '').toLowerCase().includes('kembali') || (p.realisasi && p.realisasi !== '-');
+
+                if (state.perizinanSubTab === 'persetujuan') {
+                    return !allSigned && !isReturned;
+                } else if (state.perizinanSubTab === 'aktif') {
+                    return allSigned && !isReturned;
+                } else if (state.perizinanSubTab === 'riwayat') {
+                    return isReturned;
+                }
+                return true;
+            });
+
+            main.innerHTML = `
+                <div class="h-full flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white shrink-0">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-id-badge text-orange-500"></i> Modul Perizinan Siswa
+                            </h3>
+                            <p class="text-xs text-slate-500">Buat dan pantau surat izin keluar/masuk siswa dengan alur tanda tangan peran.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+                            <div class="flex bg-slate-100 p-1 rounded-xl">
+                                ${perizinanTabs.map(tab => `
+                                    <button onclick="state.perizinanSubTab = '${tab.id}'; render();" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${state.perizinanSubTab === tab.id ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
+                                        ${tab.label}
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <button onclick="openCreateIzinModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl transition shadow flex items-center gap-1.5 shrink-0">
+                                <i class="fa-solid fa-plus"></i> Buat Izin
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                        ${(state.perizinanSubTab === 'persetujuan' && !isSigner) ? `
+                            <p class="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                                <i class="fa-solid fa-circle-info text-orange-500"></i> Anda dapat memantau pengajuan izin, namun penandatanganan hanya dapat dilakukan oleh pejabat yang berwenang.
+                            </p>
+                        ` : ''}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                                <thead class="bg-slate-50 sticky top-0">
+                                    <tr class="border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="p-3">Siswa & Kelas</th>
+                                        <th class="p-3">Keterangan</th>
+                                        <th class="p-3">Waktu Keluar</th>
+                                        <th class="p-3">Estimasi Kembali</th>
+                                        ${state.perizinanSubTab === 'riwayat' ? '<th class="p-3">Realisasi Kembali</th>' : ''}
+                                        <th class="p-3">Status / Tanda Tangan</th>
+                                        <th class="p-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${displayedPerizinan.length === 0 ? `<tr><td colspan="${state.perizinanSubTab === 'riwayat' ? 7 : 6}" class="p-6 text-center text-slate-400">Tidak ada data perizinan pada kategori ini.</td></tr>` : displayedPerizinan.map(p => {
+                                        let sigs = p.signatures || {};
+                                        let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
+                                        
+                                        let siswaObj = state.siswa.find(s => s.nisn === String(p.nisn)) || {};
+                                        let kelasSiswa = siswaObj.kelas || p.kelas || '';
+                                        let rombelSiswa = siswaObj.rombel || p.rombel || '';
+                                        let kelasRombelStr = `${kelasSiswa}-${rombelSiswa}`.toLowerCase();
+                                        
+                                        let hasAuthority = userCanSignIzin(p, state.user);
+                                        let userRoleKey = Object.keys(sigs).find(role => userMatchesRole(state.user, role, kelasSiswa, rombelSiswa));
+                                        let userAlreadySigned = userRoleKey && sigs[userRoleKey]?.status === 'Disetujui';
+
+                                        let displayStatus = allSigned ? 'Aktif' : 'Pending';
+                                        if (p.realisasi && p.realisasi !== '-') displayStatus = 'Selesai';
+
+                                        let canDelete = state.user.isAdmin || (p.nip && p.nip === state.user.nip);
+
+                                        return `
+                                            <tr class="hover:bg-slate-50/50 transition">
+                                                <td class="p-3 font-semibold text-slate-800">${p.namaSiswa} <span class="text-xs font-normal text-slate-500">(Kelas ${p.kelas}-${p.rombel || '-'})</span></td>
+                                                <td class="p-3">
+                                                    <span class="text-xs text-slate-700 italic">"${p.keterangan || '-'}"</span>
+                                                </td>
+                                                <td class="p-3 text-xs text-slate-600">${formatIndonesianDateTime(p.waktuKeluar)}</td>
+                                                <td class="p-3 text-xs text-slate-600">${formatIndonesianDateTime(p.waktuKembali)}</td>
+                                                ${state.perizinanSubTab === 'riwayat' ? `<td class="p-3 text-xs text-green-600 font-bold">${formatIndonesianDateTime(p.realisasi)}</td>` : ''}
+                                                <td class="p-3">
+                                                    <div class="space-y-1">
+                                                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">${displayStatus}</span>
+                                                        <div class="flex flex-wrap gap-1 mt-1">
+                                                            ${Object.entries(sigs).map(([role, sig]) => `
+                                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                                            `).join('')}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 text-center space-x-1 whitespace-nowrap">
+                                                    ${canUserSignNow(p) ? `
+                                                        <button onclick="openSignModal('${p.idIzin}')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium" title="Tanda Tangan"><i class="fa-solid fa-check"></i></button>
+                                                    ` : ''}
+                                                    <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-medium" title="Cetak Surat"><i class="fa-solid fa-print"></i></button>
+                                                    ${allSigned && (!p.realisasi || p.realisasi === '-') ? `
+                                                        <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Kembali</button>
+                                                    ` : ''}
+                                                    ${canDelete ? `
+                                                        <button onclick="deletePerizinan('${p.idIzin}')" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                                                    ` : ''}
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Buat Izin -->
+                <div id="createIzinModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeCreateIzinModal()">
+                    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4" onclick="event.stopPropagation()">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-file-pen text-orange-500"></i> Formulir Perizinan Siswa
+                        </h3>
+                        <form onsubmit="submitPerizinan(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Waktu Keluar</label>
+                                <input type="datetime-local" id="waktuKeluarInput" onchange="handleWaktuKeluarChange(this.value)" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Estimasi Waktu Kembali</label>
+                                <input type="datetime-local" id="waktuKembaliInput" onchange="handleWaktuKembaliChange(this.value)" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                <p class="text-[10px] text-slate-400 mt-1">Catatan: Tanggal & jam kembali tidak boleh kurang dari tanggal & waktu keberangkatan. Jika estimasi > 24 jam, jenis izin terkunci menjadi <b>Kepulangan Panjang</b>.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Keperluan / Jenis Izin</label>
+                                <select id="izinKeperluanSelect" ${state.isLockedKeperluan ? 'disabled' : ''} onchange="state.izinKeperluan = this.value; updateRolesInfo();" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 ${state.isLockedKeperluan ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : ''}">
+                                    <option value="meninggalkan sekolah" ${state.izinKeperluan === 'meninggalkan sekolah' ? 'selected' : ''}>Meninggalkan Sekolah</option>
+                                    <option value="meninggalkan asrama" ${state.izinKeperluan === 'meninggalkan asrama' ? 'selected' : ''}>Meninggalkan Asrama</option>
+                                    <option value="pemeriksaan kesehatan" ${state.izinKeperluan === 'pemeriksaan kesehatan' ? 'selected' : ''}>Pemeriksaan Kesehatan</option>
+                                    <option value="kepulangan panjang" ${state.izinKeperluan === 'kepulangan panjang' ? 'selected' : ''}>Kepulangan Panjang</option>
+                                </select>
+                                <p id="rolesInfoText" class="text-[11px] text-orange-600 mt-1">Peran penandatangan akan disesuaikan dengan kelas siswa yang dipilih.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Keterangan Izin Keluar (Wajib Diisi)</label>
+                                <textarea id="izinKeteranganInput" rows="2" required placeholder="Tuliskan keterangan detail alasan izin..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Pilih Siswa (Berdasarkan Jenjang)</label>
+                                <input type="text" oninput="handleSiswaSearchInput(this.value)" value="${state.izinSearchSiswa || ''}" placeholder="Cari nama atau NISN siswa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mb-2">
+                                <div id="siswaListContainer" class="max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-3 bg-slate-50">
+                                    ${renderSiswaJenjangList()}
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3 pt-2">
+                                <button type="button" onclick="closeCreateIzinModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition text-xs">Batal</button>
+                                <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow text-xs">Ajukan Perizinan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- HELPER STATUS PERIZINAN ---
+        function isIzinSelesai(p) {
+            const st = String(p.status || '').toLowerCase();
+            return st.includes('selesai') || st.includes('kembali') || !!(p.realisasi && p.realisasi !== '-');
+        }
+
+        // Status tampilan: Pending (belum lengkap ditandatangani), Aktif (sedang izin), Selesai (sudah kembali)
+        function getIzinStatusLabel(p) {
+            if (isIzinSelesai(p)) return 'Selesai';
+            const sigs = Object.values(p.signatures || {});
+            const allSigned = sigs.length > 0 && sigs.every(sg => sg.status === 'Disetujui');
+            return allSigned ? 'Aktif' : 'Pending';
+        }
+
+        // NISN siswa yang masih memiliki izin berjalan (Pending / Aktif)
+        function getSiswaDenganIzinAktif() {
+            return new Set(state.perizinanSiswa.filter(p => !isIzinSelesai(p)).map(p => String(p.nisn)));
+        }
+
+        function formatShortDateTime(isoString) {
+            if (!isoString || isoString === '-') return '-';
+            const d = new Date(String(isoString).replace('T', ' '));
+            if (isNaN(d.getTime())) return isoString;
+            const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getDate())} ${mon[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        const KEPERLUAN_LABEL = {
+            'kepulangan panjang': 'Kepulangan Panjang',
+            'pemeriksaan kesehatan': 'Pemeriksaan Kesehatan',
+            'meninggalkan asrama': 'Meninggalkan Asrama',
+            'meninggalkan sekolah': 'Meninggalkan Sekolah'
+        };
+
+        function renderSiswaJenjangList() {
+            const query = (state.izinSearchSiswa || '').toLowerCase();
+            const sedangIzin = getSiswaDenganIzinAktif();
+            // Siswa yang masih memiliki izin berjalan tidak bisa dipilih lagi
+            state.izinSelectedSiswa = state.izinSelectedSiswa.filter(n => !sedangIzin.has(String(n)));
+            const hiddenCount = state.siswa.filter(s => sedangIzin.has(s.nisn)).length;
+            const filtered = state.siswa.filter(s => !sedangIzin.has(s.nisn) && (s.nama.toLowerCase().includes(query) || s.nisn.includes(query) || s.kelas.toLowerCase().includes(query)));
+            const hiddenNote = hiddenCount > 0
+                ? `<p class="text-[11px] text-slate-500 bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-1.5 mb-2"><i class="fa-solid fa-circle-info text-orange-500"></i> ${hiddenCount} siswa disembunyikan karena masih memiliki izin yang belum selesai.</p>`
+                : '';
+            if (filtered.length === 0) return hiddenNote + '<p class="text-xs text-slate-400 text-center py-4">Tidak ada data siswa yang dapat diajukan.</p>';
+
+            const groups = { SD: [], SMP: [], SMA: [], Lainnya: [] };
+            filtered.forEach(s => {
+                const j = getJenjang(s.kelas);
+                if (groups[j]) groups[j].push(s);
+                else groups['Lainnya'].push(s);
+            });
+
+            let html = hiddenNote;
+            ['SD', 'SMP', 'SMA', 'Lainnya'].forEach(jName => {
+                const list = groups[jName];
+                if (list.length === 0) return;
+                html += `<div class="mb-2"><p class="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-1 border-b pb-0.5">Jenjang ${jName} (Kelas ${jName === 'SD' ? '1-6' : jName === 'SMP' ? '7-9' : jName === 'SMA' ? '10-12' : 'Lainnya'})</p>`;
+                list.forEach(s => {
+                    const isChecked = state.izinSelectedSiswa.includes(s.nisn);
+                    html += `
+                        <label class="flex items-center gap-2 p-1.5 hover:bg-white rounded-lg cursor-pointer transition">
+                            <input type="checkbox" value="${s.nisn}" ${isChecked ? 'checked' : ''} onchange="toggleSelectSiswa('${s.nisn}')" class="w-4 h-4 text-orange-500 rounded">
+                            <span class="text-xs font-medium text-slate-800">${s.nama} (Kelas ${s.kelas}-${s.rombel || '-'}) - ${s.nisn}</span>
+                        </label>
+                    `;
+                });
+                html += `</div>`;
+            });
+            return html;
+        }
+
+        function handleSiswaSearchInput(val) {
+            state.izinSearchSiswa = val;
+            const container = document.getElementById('siswaListContainer');
+            if (container) container.innerHTML = renderSiswaJenjangList();
+        }
+
+        function handleWaktuKeluarChange(val) {
+            const keluarVal = document.getElementById('waktuKeluarInput').value;
+            const kembaliInput = document.getElementById('waktuKembaliInput');
+            if (keluarVal) {
+                kembaliInput.min = keluarVal;
+                const timePart = keluarVal.split('T')[1] || '';
+                if (timePart) {
+                    const [h, m] = timePart.split(':').map(Number);
+                    const totalMins = h * 60 + m;
+                    const selectEl = document.getElementById('izinKeperluanSelect');
+                    if (selectEl) {
+                        const opts = selectEl.options;
+                        for (let i = 0; i < opts.length; i++) {
+                            if (opts[i].value === 'meninggalkan sekolah') {
+                                if (totalMins >= 870 || totalMins < 420) {
+                                    opts[i].disabled = true;
+                                    if (selectEl.value === 'meninggalkan sekolah') selectEl.value = 'meninggalkan asrama';
+                                } else {
+                                    opts[i].disabled = false;
+                                }
+                            } else if (opts[i].value === 'meninggalkan asrama') {
+                                if (totalMins >= 420 && totalMins < 870) {
+                                    opts[i].disabled = true;
+                                    if (selectEl.value === 'meninggalkan asrama') selectEl.value = 'meninggalkan sekolah';
+                                } else {
+                                    opts[i].disabled = false;
+                                }
+                            }
+                        }
+                        state.izinKeperluan = selectEl.value;
+                    }
+                }
+            }
+            handleWaktuKembaliChange(kembaliInput.value);
+        }
+
+        function handleWaktuKembaliChange(val) {
+            const keluarVal = document.getElementById('waktuKeluarInput').value;
+            const kembaliInput = document.getElementById('waktuKembaliInput');
+            if (keluarVal && val && val < keluarVal) {
+                showToast("Waktu kembali tidak boleh kurang dari waktu keberangkatan!", true);
+                kembaliInput.value = keluarVal;
+                val = keluarVal;
+            }
+
+            if (val) {
+                state.izinWaktuKembali = val;
+                const kembaliDate = new Date(val);
+                const now = new Date();
+                const diffHours = (kembaliDate - now) / (1000 * 60 * 60);
+                if (diffHours > 24) {
+                    state.izinKeperluan = 'kepulangan panjang';
+                    state.isLockedKeperluan = true;
+                    showToast("Estimasi > 24 jam: Jenis izin terkunci menjadi Kepulangan Panjang.");
+                } else {
+                    state.isLockedKeperluan = false;
+                }
+                const selectEl = document.getElementById('izinKeperluanSelect');
+                if (selectEl) {
+                    selectEl.value = state.izinKeperluan;
+                    selectEl.disabled = state.isLockedKeperluan;
+                }
+            }
+            updateRolesInfo();
+        }
+
+        function updateRolesInfo() {
+            const rolesText = document.getElementById('rolesInfoText');
+            if (rolesText) {
+                if (state.izinSelectedSiswa.length > 0) {
+                    const firstSiswa = state.siswa.find(s => s.nisn === state.izinSelectedSiswa[0]);
+                    const k = firstSiswa ? firstSiswa.kelas : '';
+                    const r = firstSiswa ? firstSiswa.rombel : '';
+                    const kRStr = k && r ? `${k}-${r}` : (k ? k : '');
+                    
+                    let roles = [];
+                    if (state.izinKeperluan === 'meninggalkan sekolah') roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan'];
+                    else if (state.izinKeperluan === 'pemeriksaan kesehatan') roles = ['Petugas Kesehatan', 'Kepala UKSR'];
+                    else if (state.izinKeperluan === 'meninggalkan asrama') roles = ['Wali Asuh', 'Waka Keasramaan'];
+                    else if (state.izinKeperluan === 'kepulangan panjang') roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan', 'Waka Keasramaan'];
+                    else roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
+
+                    rolesText.innerHTML = `Peran penandatangan: <b>${roles.join(', ')}</b>`;
+                } else {
+                    rolesText.innerHTML = `Pilih minimal 1 siswa untuk melihat detail peran penandatangan.`;
+                }
+            }
+        }
+
+        function openCreateIzinModal() {
+            state.izinSelectedSiswa = [];
+            state.izinSearchSiswa = '';
+            const siswaBox = document.getElementById('siswaListContainer');
+            if (siswaBox) siswaBox.innerHTML = renderSiswaJenjangList();
+            state.isLockedKeperluan = false;
+            document.getElementById('createIzinModal').classList.remove('hidden');
+            document.getElementById('createIzinModal').classList.add('flex');
+            updateRolesInfo();
+        }
+
+        function closeCreateIzinModal() {
+            state.izinSelectedSiswa = [];
+            document.getElementById('createIzinModal').classList.remove('flex');
+            document.getElementById('createIzinModal').classList.add('hidden');
+        }
+
+        function toggleSelectSiswa(nisn) {
+            if (state.izinSelectedSiswa.includes(nisn)) {
+                state.izinSelectedSiswa = state.izinSelectedSiswa.filter(n => n !== nisn);
+            } else {
+                state.izinSelectedSiswa.push(nisn);
+            }
+            updateRolesInfo();
+        }
+
+        async function submitPerizinan(e) {
+            e.preventDefault();
+            const waktuKeluar = document.getElementById('waktuKeluarInput').value;
+            const waktuKembali = document.getElementById('waktuKembaliInput').value;
+            const keterangan = document.getElementById('izinKeteranganInput').value.trim();
+
+            if (!waktuKeluar || !waktuKembali) {
+                showToast("Waktu keluar dan estimasi waktu kembali wajib diisi!", true);
+                return;
+            }
+            if (waktuKembali < waktuKeluar) {
+                showToast("Waktu kembali tidak boleh kurang dari waktu keberangkatan!", true);
+                return;
+            }
+            if (!keterangan) {
+                showToast("Keterangan izin keluar wajib diisi!", true);
+                return;
+            }
+            if (state.izinSelectedSiswa.length === 0) {
+                showToast("Pilih minimal 1 siswa!", true);
+                return;
+            }
+
+            showLoading("Menyimpan perizinan...");
+            try {
+                const { data: existingIzin, error: cekErr } = await supabaseClient
+                    .from('perizinan_siswa')
+                    .select('nisn, status, realisasi')
+                    .in('nisn', state.izinSelectedSiswa);
+                if (cekErr) throw new Error(cekErr.message);
+                const blocked = (existingIzin || []).filter(r => {
+                    const st = String(r.status || '').toLowerCase();
+                    return !(st.includes('selesai') || st.includes('kembali') || r.realisasi);
+                }).map(r => String(r.nisn));
+                if (blocked.length > 0) {
+                    const names = [...new Set(blocked)].map(n => (state.siswa.find(x => x.nisn === n) || {}).nama || n).join(', ');
+                    state.izinSelectedSiswa = state.izinSelectedSiswa.filter(n => !blocked.includes(String(n)));
+                    const box = document.getElementById('siswaListContainer');
+                    if (box) box.innerHTML = renderSiswaJenjangList();
+                    throw new Error("Siswa masih memiliki izin yang belum selesai: " + names);
+                }
+
+                const now = new Date();
+                const yy = String(now.getFullYear()).slice(-2);
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const datePrefix = yy + mm + dd;
+
+                let prefix = 'IS';
+                if (state.izinKeperluan.includes('asrama')) prefix = 'IA';
+                else if (state.izinKeperluan.includes('kesehatan')) prefix = 'IK';
+                else if (state.izinKeperluan.includes('kepulangan')) prefix = 'IP';
+
+                for (let i = 0; i < state.izinSelectedSiswa.length; i++) {
+                    const nisn = state.izinSelectedSiswa[i];
+                    const siswaObj = state.siswa.find(s => s.nisn === nisn);
+                    const kRStr = siswaObj && siswaObj.kelas && siswaObj.rombel ? `${siswaObj.kelas}-${siswaObj.rombel}` : (siswaObj && siswaObj.kelas ? siswaObj.kelas : '');
+
+                    const getRoles = (keperluan) => {
+                        switch(keperluan) {
+                            case 'meninggalkan sekolah': return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan'];
+                            case 'pemeriksaan kesehatan': return ['Petugas Kesehatan', 'Kepala UKSR'];
+                            case 'meninggalkan asrama': return ['Wali Asuh', 'Waka Keasramaan'];
+                            case 'kepulangan panjang': return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan', 'Waka Keasramaan'];
+                            default: return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
+                        }
+                    };
+
+                    let roles = getRoles(state.izinKeperluan);
+                    let initialSigs = {};
+                    roles.forEach(r => { initialSigs[r] = { nama: '-', nip: '-', status: 'Pending' }; });
+                    
+                    const { count } = await supabaseClient
+                        .from('perizinan_siswa')
+                        .select('*', { count: 'exact', head: true })
+                        .like('id_izin', `${prefix}${datePrefix}%`);
+
+                    let seq = (count || 0) + 1 + i;
+                    const idIzin = `${prefix}${datePrefix}${String(seq).padStart(3, '0')}`;
+
+                    const payload = {
+                        id_izin: idIzin,
+                        nip: state.user.nip,
+                        nisn: nisn,
+                        kelas: siswaObj ? siswaObj.kelas : '-',
+                        rombel: siswaObj ? siswaObj.rombel : '-',
+                        keperluan: state.izinKeperluan,
+                        keterangan: keterangan,
+                        waktu_keluar: waktuKeluar,
+                        waktu_kembali: waktuKembali,
+                        realisasi: null,
+                        status: 'Pending',
+                        signatures: initialSigs
+                    };
+
+                    const { error: insertErr } = await supabaseClient.from('perizinan_siswa').insert([payload]);
+                    if (insertErr) throw new Error(insertErr.message);
+                }
+
+                showToast("Perizinan siswa berhasil diajukan!");
+                state.izinSelectedSiswa = [];
+                closeCreateIzinModal();
+                await fetchAppData();
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menyimpan perizinan: " + err.message, true);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // --- SIGN MODAL LOGIC ---
+
+        // --- HELPER DATA PERIZINAN (JSON, PENANDATANGAN, PENERIMA) ---
+        function parseJsonField(v) {
+            let x = v;
+            for (let n = 0; n < 3 && typeof x === 'string'; n++) {
+                const t = x.trim();
+                if (!t) return null;
+                try { x = JSON.parse(t); } catch (e) { return null; }
+            }
+            return (x && typeof x === 'object') ? x : null;
+        }
+
+        function normalizeReturnDetails(v) {
+            const o = parseJsonField(v);
+            if (!o) return null;
+            return {
+                pengantar: String(o.pengantar || o.nama_pengantar || o.pengantar_nama || '').trim(),
+                catatan: String(o.catatan || o.keterangan || o.note || '').trim()
+            };
+        }
+
+        function normalizeReceiverInfo(v) {
+            const o = parseJsonField(v);
+            if (!o) return null;
+            return {
+                nama: String(o.nama || o.nama_pegawai || o.name || '').trim(),
+                nip: String(o.nip || '').trim(),
+                tugas: String(o.tugas || o.jabatan || '').trim()
+            };
+        }
+
+        function findPenggunaByNip(nip) {
+            return (state.penggunaList || []).find(u => String(u.nip) === String(nip)) || null;
+        }
+
+        // Memecah tugas seperti "Wali Kelas 7-A, Pembina Pramuka" menjadi bagian-bagian
+        // Peran pegawai: kolom tugas; jika kosong gunakan kolom jabatan
+        function tugasSource(user) {
+            if (!user) return '';
+            const t = String(user.tugas || '').trim();
+            return t || String(user.jabatan || '').trim();
+        }
+
+        function splitTugas(t) {
+            return String(t || '').split(/\s*(?:,|;|\/|&|\n|\bdan\b)\s*/i).map(x => x.trim()).filter(Boolean);
+        }
+
+        function segmentMatchesRole(seg, roleName, kelas, rombel) {
+            const s = seg.toLowerCase();
+            const r = String(roleName || '').toLowerCase();
+            if (r.includes('wali kelas')) {
+                const re = /kelas\s*(\d{1,2})(?:\s*[-–.]?\s*([a-z0-9]{1,2})(?![a-z0-9]))?/;
+                const m = s.match(re);
+                if (!m) return false;
+                // Kelas & rombel target: dari nama peran (mis. "Wali Kelas 1-1"); jika tidak ada, dari data siswa
+                const rm = r.match(re);
+                let tKelas = rm ? rm[1] : kelas;
+                let tRombel = rm && rm[2] ? rm[2] : String(rombel || '').toLowerCase();
+                if (!rm || !rm[2]) {
+                    const stripped = tRombel.replace(new RegExp('^' + parseInt(tKelas) + '\\s*[-–.]?\\s*'), '');
+                    if (stripped) tRombel = stripped;
+                }
+                if (parseInt(m[1]) !== parseInt(tKelas)) return false;
+                if (m[2]) return m[2] === String(tRombel).toLowerCase();
+                return true;
+            }
+            if (r.includes('petugas kesehatan') || r.includes('kesehatan') || r.includes('nakes')) {
+                return s.includes('petugas kesehatan') || s.includes('kesehatan') || s.includes('nakes');
+            }
+            if (r.includes('kepala uksr') || r.includes('uks')) {
+                return s.includes('kepala uksr') || s.includes('uksr') || s.includes('uks');
+            }
+            if (r.includes('waka kesiswaan')) {
+                return s.includes('waka kesiswaan') || (s.includes('waka') && s.includes('kesiswaan'));
+            }
+            if (r.includes('waka keasramaan')) {
+                return s.includes('waka keasramaan') || (s.includes('waka') && (s.includes('asrama') || s.includes('keasramaan')));
+            }
+            if (r.includes('wali asuh')) return s.includes('wali asuh');
+            return s.includes(r);
+        }
+
+        // Mengembalikan bagian tugas pegawai yang cocok dengan peran (atau null)
+        function findRoleSegment(user, roleName, kelas, rombel) {
+            if (!user) return null;
+            const segs = splitTugas(tugasSource(user));
+            return segs.find(sg => segmentMatchesRole(sg, roleName, kelas, rombel)) || null;
+        }
+
+        function userMatchesRole(user, roleName, kelas, rombel) {
+            return !!findRoleSegment(user, roleName, kelas, rombel);
+        }
+
+        // Data penandatangan yang akan dicetak pada surat izin (nama, NIP, jabatan sebenarnya)
+        function resolveSigner(izin, roleName) {
+            const sig = (izin.signatures || {})[roleName] || {};
+            let nama = String(sig.nama || '').trim();
+            let nip = String(sig.nip || '').trim();
+            let jabatan = String(sig.jabatan || '').trim();
+            const u = nip && nip !== '-' ? findPenggunaByNip(nip) : null;
+            if (u) {
+                if (!nama) nama = u.nama || '';
+                if (!jabatan) jabatan = findRoleSegment(u, roleName, izin.kelas, izin.rombel) || tugasSource(u);
+            }
+            return {
+                nama: nama || '-',
+                nip: nip || '-',
+                jabatan: jabatan || roleName,
+                status: sig.status
+            };
+        }
+
+        // Data pegawai penerima pada surat keterangan kembali
+        function resolveReceiver(izin) {
+            const info = izin.receiverInfo || {};
+            let nama = info.nama || '';
+            let nip = info.nip || '';
+            let tugas = info.tugas || '';
+            const u = nip ? findPenggunaByNip(nip) : null;
+            if (u) {
+                if (!nama) nama = u.nama || '';
+                if (!tugas) tugas = tugasSource(u);
+            }
+            return { nama, nip, tugas };
+        }
+
+        // Apakah pengguna berwenang menandatangani salah satu peran pada izin ini
+        function userCanSignIzin(izin, user) {
+            if (!izin || !user) return false;
+            if (user.isAdmin) return true;
+            const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || {};
+            const kelas = siswaObj.kelas || izin.kelas || '';
+            const rombel = siswaObj.rombel || izin.rombel || '';
+            return Object.keys(izin.signatures || {}).some(role => userMatchesRole(user, role, kelas, rombel));
+        }
+
+        // Apakah tombol tanda tangan perlu ditampilkan untuk pengguna saat ini
+        function canUserSignNow(izin) {
+            const sigs = izin.signatures || {};
+            const allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(sg => sg.status === 'Disetujui');
+            if (allSigned || isIzinSelesai(izin) || !userCanSignIzin(izin, state.user)) return false;
+            const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || {};
+            const kelas = siswaObj.kelas || izin.kelas || '';
+            const rombel = siswaObj.rombel || izin.rombel || '';
+            const roleKey = Object.keys(sigs).find(role => userMatchesRole(state.user, role, kelas, rombel));
+            return !(roleKey && sigs[roleKey]?.status === 'Disetujui');
+        }
+
+        function openSignModal(idIzin) {
+            activeSignIdIzin = idIzin;
+            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            if (!izin) return;
+            const sigs = izin.signatures || {};
+            const userTugas = tugasSource(state.user).toLowerCase();
+            const siswaObj = state.siswa.find(s => s.nisn === String(izin.nisn)) || {};
+            const kelasSiswa = siswaObj.kelas || izin.kelas || '';
+            const rombelSiswa = siswaObj.rombel || izin.rombel || '';
+            const kelasRombelStr = kelasSiswa && rombelSiswa ? `${kelasSiswa}-${rombelSiswa}`.toLowerCase() : '';
+
+            let targetRole = '';
+            if (!state.user.isAdmin) {
+                let matchedRole = Object.keys(sigs).find(role => userMatchesRole(state.user, role, kelasSiswa, rombelSiswa));
+                if (!matchedRole) {
+                    activeSignIdIzin = null;
+                    showToast("Anda tidak berwenang menandatangani dokumen ini.", true);
+                    return;
+                }
+                targetRole = matchedRole;
+            }
+
+            const knownRole = (r) => ['wali kelas', 'kesehatan', 'nakes', 'uks', 'waka', 'wali asuh'].some(k => r.toLowerCase().includes(k));
+            const filterPenggunaByRole = (roleName) => {
+                if (!knownRole(roleName)) return state.penggunaList;
+                return state.penggunaList.filter(u => userMatchesRole(u, roleName, kelasSiswa, rombelSiswa));
+            };
+
+            let html = '';
+            if (state.user.isAdmin) {
+                let availableRoles = Object.keys(sigs);
+                html = `
+                    <div class="space-y-3">
+                        <label class="block text-xs font-semibold uppercase text-slate-500">Pilih Peran yang Ingin Ditandatangani (Bisa > 1)</label>
+                        <p class="text-[11px] text-slate-400">Setiap peran yang dipilih akan otomatis mencatat nama pegawai yang bertugas pada peran tersebut dari database.</p>
+                        <div class="space-y-2 max-h-48 overflow-y-auto p-2 bg-slate-50 border rounded-xl">
+                            ${availableRoles.map(r => `
+                                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                                    <input type="checkbox" name="adminRoleCheckbox" value="${r}" checked class="w-4 h-4 text-orange-500 rounded">
+                                    <span>${r}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                const filteredUsers = filterPenggunaByRole(targetRole);
+                if (targetRole.toLowerCase().includes('wali asuh')) {
+                    // Wali Asuh menandatangani atas nama sendiri (tanpa memilih pengguna)
+                    html = `
+                        <p class="text-xs text-slate-600 mb-2">Anda akan menandatangani sebagai: <b class="text-slate-900">${targetRole}</b></p>
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            <p class="font-semibold text-slate-900">${state.user.nama}</p>
+                            <p class="text-slate-500 mt-0.5">NIP: ${state.user.nip}</p>
+                            <p class="text-slate-500 mt-0.5">${tugasSource(state.user) || 'Wali Asuh'}</p>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-2">Dokumen akan ditandatangani atas nama Anda sendiri.</p>
+                        <input type="hidden" id="nonAdminRole" value="${targetRole}">
+                    `;
+                } else html = `
+                    <p class="text-xs text-slate-600 mb-2">Anda akan menandatangani sebagai: <b class="text-slate-900">${targetRole}</b></p>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Konfirmasi Nama Penandatangan</label>
+                        <select id="signUserDropdown" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                            ${filteredUsers.map(u => `<option value="${u.nip}" ${u.nip === state.user.nip ? 'selected' : ''} data-nama="${u.nama}">${u.nama} (${tugasSource(u) || 'Pegawai'}) - NIP: ${u.nip}</option>`).join('')}
+                        </select>
+                        <input type="hidden" id="nonAdminRole" value="${targetRole}">
+                    </div>
+                `;
+            }
+
+            document.getElementById('signModalContent').innerHTML = html;
+            document.getElementById('signModal').classList.remove('hidden');
+            document.getElementById('signModal').classList.add('flex');
+        }
+
+        function closeSignModal() {
+            document.getElementById('signModal').classList.remove('flex');
+            document.getElementById('signModal').classList.add('hidden');
+        }
+
+        function triggerSignConfirmation() {
+            const izinCek = state.perizinanSiswa.find(p => p.idIzin === activeSignIdIzin);
+            if (!userCanSignIzin(izinCek, state.user)) {
+                closeSignModal();
+                showToast("Anda tidak berwenang menandatangani dokumen ini.", true);
+                return;
+            }
+            let selectedAdminRoles = [];
+            let singleSignerNip = state.user.nip;
+            let singleSignerName = state.user.nama;
+
+            if (state.user.isAdmin) {
+                const checkboxes = document.querySelectorAll('input[name="adminRoleCheckbox"]:checked');
+                checkboxes.forEach(cb => selectedAdminRoles.push(cb.value));
+            } else {
+                let nonAdminRoleEl = document.getElementById('nonAdminRole');
+                if (nonAdminRoleEl) selectedAdminRoles.push(nonAdminRoleEl.value);
+                const selectUserEl = document.getElementById('signUserDropdown');
+                if (selectUserEl) {
+                    singleSignerNip = selectUserEl.value;
+                    singleSignerName = selectUserEl.selectedIndex >= 0 ? selectUserEl.options[selectUserEl.selectedIndex].getAttribute('data-nama') : state.user.nama;
+                }
+            }
+
+            if (selectedAdminRoles.length === 0) {
+                showToast("Pilih minimal 1 peran penandatangan!", true);
+                return;
+            }
+
+            closeSignModal();
+
+            showCustomConfirm("Apakah Anda yakin ingin menandatangani perizinan ini untuk peran yang dipilih?", async () => {
+                if (!activeSignIdIzin) return;
+                const idIzin = activeSignIdIzin;
+
+                showLoading("Memproses tanda tangan...");
+                try {
+                    let izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+                    if (!izin) throw new Error("Data tidak ditemukan");
+
+                    let sigs = JSON.parse(JSON.stringify(izin.signatures || {}));
+                    const siswaObj = state.siswa.find(s => s.nisn === String(izin.nisn)) || {};
+                    const kelasSiswa = siswaObj.kelas || izin.kelas || '';
+                    const rombelSiswa = siswaObj.rombel || izin.rombel || '';
+                    const kelasRombelStr = kelasSiswa && rombelSiswa ? `${kelasSiswa}-${rombelSiswa}`.toLowerCase() : '';
+
+                    const unmatchedRoles = [];
+                    selectedAdminRoles.forEach(roleName => {
+                        let signName = singleSignerName;
+                        let signNip = singleSignerNip;
+                        let signJabatan = roleName;
+
+                        if (state.user.isAdmin) {
+                            const matchedUser = state.penggunaList.find(u => userMatchesRole(u, roleName, kelasSiswa, rombelSiswa));
+                            if (matchedUser) {
+                                signName = matchedUser.nama;
+                                signNip = matchedUser.nip;
+                                signJabatan = findRoleSegment(matchedUser, roleName, kelasSiswa, rombelSiswa) || roleName;
+                            } else {
+                                // Tidak ada pegawai terdaftar untuk peran ini: jabatan dicatat apa adanya (bukan peran)
+                                unmatchedRoles.push(roleName);
+                                signJabatan = tugasSource(state.user) || 'Administrator';
+                            }
+                        } else {
+                            const signerUser = findPenggunaByNip(signNip);
+                            signJabatan = findRoleSegment(signerUser, roleName, kelasSiswa, rombelSiswa)
+                                || tugasSource(signerUser) || roleName;
+                        }
+
+                        sigs[roleName] = { nama: signName, nip: signNip, jabatan: signJabatan, status: 'Disetujui' };
+                    });
+
+                    let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
+                    let updateData = { 
+                        signatures: sigs,
+                        status: allSigned ? 'Aktif' : 'Pending'
+                    };
+
+                    const { error } = await supabaseClient.from('perizinan_siswa').update(updateData).eq('id_izin', idIzin);
+                    if (error) throw new Error(error.message);
+
+                    showToast(unmatchedRoles.length
+                        ? "Tersimpan. Tidak ada pegawai terdaftar untuk peran: " + unmatchedRoles.join(', ') + " (ditandatangani atas nama Anda)."
+                        : "Berhasil menandatangani perizinan!", unmatchedRoles.length > 0);
+                    await fetchAppData();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal menandatangani: " + err.message, true);
+                } finally {
+                    hideLoading();
+                }
+            });
+        }
+
+        // --- RETURN / PENYELESAIAN SISWA DENGAN MODAL ---
+        function openReturnInputModalHandler(idIzin) {
+            activeReturnIdIzin = idIzin;
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            document.getElementById('returnDateInput').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            document.getElementById('returnTimeInput').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            document.getElementById('returnPengantarInput').value = '';
+            document.getElementById('returnCatatanInput').value = '';
+
+            document.getElementById('returnInputModal').classList.remove('hidden');
+            document.getElementById('returnInputModal').classList.add('flex');
+        }
+
+        function closeReturnInputModal() {
+            document.getElementById('returnInputModal').classList.remove('flex');
+            document.getElementById('returnInputModal').classList.add('hidden');
+            activeReturnIdIzin = null;
+        }
+
+        async function submitStudentReturn() {
+            const dateVal = document.getElementById('returnDateInput').value;
+            const timeVal = document.getElementById('returnTimeInput').value;
+            const pengantar = document.getElementById('returnPengantarInput').value.trim();
+            const catatan = document.getElementById('returnCatatanInput').value.trim();
+
+            if (!dateVal || !timeVal || !pengantar) {
+                showToast("Tanggal, jam, dan pengantar wajib diisi!", true);
+                return;
+            }
+
+            const idIzin = activeReturnIdIzin;
+            closeReturnInputModal();
+
+            showCustomConfirm("Apakah Anda yakin ingin menyelesaikan perizinan dan mencatat siswa kembali?", async () => {
+                showLoading("Memproses waktu kembali...");
+                try {
+                    const realisasiStr = `${dateVal} ${timeVal}`;
+                    const returnDetails = { pengantar, catatan };
+                    const receiverInfo = {
+                        nama: state.user.nama,
+                        nip: state.user.nip,
+                        tugas: tugasSource(state.user) || 'Pegawai'
+                    };
+
+                    const { error } = await supabaseClient.from('perizinan_siswa').update({ 
+                        realisasi: realisasiStr, 
+                        return_details: returnDetails,
+                        receiver_info: receiverInfo,
+                        status: 'Selesai' 
+                    }).eq('id_izin', idIzin);
+
+                    if (error) throw new Error(error.message);
+
+                    showToast("Siswa dicatat telah kembali.");
+                    await fetchAppData();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal memperbarui status: " + err.message, true);
+                } finally {
+                    hideLoading(); // Memastikan overlay loading selalu tertutup
+                }
+            });
+        }
+
+        async function deletePerizinan(idIzin) {
+            showCustomConfirm("Apakah Anda yakin ingin menghapus data perizinan ini?", async () => {
+                showLoading("Menghapus perizinan...");
+                try {
+                    const { error } = await supabaseClient.from('perizinan_siswa').delete().eq('id_izin', idIzin);
+                    if (error) throw new Error(error.message);
+                    showToast("Data perizinan berhasil dihapus.");
+                    await fetchAppData();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal menghapus data: " + err.message, true);
+                } finally {
+                    hideLoading();
+                }
+            });
+        }
+
+        function openPrintLetterModal(idIzin) {
+            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            if (!izin) {
+                showToast("Data perizinan tidak ditemukan.", true);
+                return;
+            }
+
+            const sigKeys = Object.keys(izin.signatures || {});
+            const totalSigs = sigKeys.length;
+            const nowFormatted = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+            let sigBoxesHtml = '';
+
+            if (totalSigs <= 2) {
+                let leftSignerRole = sigKeys[1] || sigKeys[0] || 'Mengetahui';
+                let rightSignerRole = sigKeys[0] || 'Petugas';
+                let leftSigData = resolveSigner(izin, leftSignerRole);
+                let rightSigData = resolveSigner(izin, rightSignerRole);
+
+                let isLeftSigned = leftSigData.nama && leftSigData.nama !== '-' && leftSigData.nama !== '';
+                let isRightSigned = rightSigData.nama && rightSigData.nama !== '-' && rightSigData.nama !== '';
+
+                let leftQr = isLeftSigned ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('Valid Digital Signature - ' + leftSignerRole + ': ' + leftSigData.nama + ' (NIP: ' + leftSigData.nip + ') ID: ' + izin.idIzin)}" class="w-16 h-16 mx-auto my-1 object-contain" alt="QR">` : `<div class="h-16 flex items-center justify-center text-slate-400 italic text-[10px]">(Belum Ditandatangani)</div>`;
+                let rightQr = isRightSigned ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('Valid Digital Signature - ' + rightSignerRole + ': ' + rightSigData.nama + ' (NIP: ' + rightSigData.nip + ') ID: ' + izin.idIzin)}" class="w-16 h-16 mx-auto my-1 object-contain" alt="QR">` : `<div class="h-16 flex items-center justify-center text-slate-400 italic text-[10px]">(Belum Ditandatangani)</div>`;
+
+                sigBoxesHtml = `
+                    <div class="flex justify-between pt-6 text-xs signature-block-container items-start">
+                        <div class="text-center w-52 flex flex-col items-center">
+                            <p class="font-semibold text-slate-700 mb-1">Mengetahui,</p>
+                            <p class="font-semibold uppercase text-slate-700 mb-2">${leftSigData.jabatan}</p>
+                            <div class="my-1">${leftQr}</div>
+                            <p class="font-bold underline text-slate-900 mt-2">${isLeftSigned ? leftSigData.nama : '( ........................ )'}</p>
+                            <p class="text-[11px] text-slate-600 mt-0.5">${leftSigData.nip && leftSigData.nip !== '-' ? 'NIP. ' + leftSigData.nip : '&nbsp;'}</p>
+                        </div>
+                        <div class="text-center w-52 flex flex-col items-center">
+                            <p class="text-slate-700 mb-1">Pasuruan, ${nowFormatted}</p>
+                            <p class="font-semibold uppercase text-slate-700 mb-2">${rightSigData.jabatan}</p>
+                            <div class="my-1">${rightQr}</div>
+                            <p class="font-bold underline text-slate-900 mt-2">${isRightSigned ? rightSigData.nama : '( ........................ )'}</p>
+                            <p class="text-[11px] text-slate-600 mt-0.5">${rightSigData.nip && rightSigData.nip !== '-' ? 'NIP. ' + rightSigData.nip : '&nbsp;'}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                sigBoxesHtml = `
+                    <div class="grid grid-cols-3 gap-3 pt-6 text-xs text-center signature-block-container items-start">
+                        ${sigKeys.map((role, idx) => {
+                            let sigData = resolveSigner(izin, role);
+                            let isSigned = sigData.nama && sigData.nama !== '-' && sigData.nama !== '';
+                            let qrHtml = isSigned ? 
+                                `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('Valid Digital Signature - ' + role + ': ' + sigData.nama + ' (NIP: ' + sigData.nip + ') ID: ' + izin.idIzin)}" class="w-16 h-16 mx-auto my-1 object-contain" alt="QR Tanda Tangan">` :
+                                `<div class="h-16 flex items-center justify-center text-slate-400 italic text-[10px]">(Belum Ditandatangani)</div>`;
+
+                            let topText = '&nbsp;';
+                            if (idx === 0) topText = 'Mengetahui,';
+                            if (idx === 1) topText = 'Pasuruan, ' + nowFormatted;
+
+                            return `
+                                <div class="flex flex-col items-center justify-between">
+                                    <p class="font-semibold text-slate-700 mb-1">${topText}</p>
+                                    <p class="font-semibold uppercase text-slate-700 mb-2">${sigData.jabatan}</p>
+                                    <div class="my-1">${qrHtml}</div>
+                                    <p class="font-bold underline text-slate-900 mt-2">${isSigned ? sigData.nama : '( ........................ )'}</p>
+                                    <p class="text-[10px] text-slate-600 mt-0.5">${sigData.nip && sigData.nip !== '-' ? 'NIP. ' + sigData.nip : '&nbsp;'}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            const returnDetails = izin.returnDetails || {};
+            const receiverInfo = resolveReceiver(izin);
+            const isReturned = izin.realisasi && izin.realisasi !== '-';
+
+            let returnPengantarQr = (isReturned && returnDetails.pengantar) ?
+                `<div class="h-16 flex flex-col items-center justify-center gap-1 text-green-700">
+                    <i class="fa-solid fa-circle-check text-2xl"></i>
+                    <span class="text-[10px] font-semibold">Terverifikasi oleh sistem</span>
+                </div>` :
+                `<div class="h-16 flex items-center justify-center text-slate-300 text-xs">-</div>`;
+
+            let receiverQr = (isReturned && receiverInfo.nama) ? 
+                `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('Valid Return Receipt - ' + receiverInfo.tugas + ': ' + receiverInfo.nama + ' (NIP: ' + receiverInfo.nip + ')')}" class="w-16 h-16 mx-auto my-1 object-contain" alt="QR">` :
+                `<div class="h-16 flex items-center justify-center text-slate-300 text-xs">-</div>`;
+
+            const container = document.getElementById('printableLetter');
+            container.innerHTML = `
+                <!-- KOP SURAT BARU KEMENSOS -->
+                <div class="flex items-center border-b-4 border-double border-black pb-4 mb-4">
+                    <div class="w-1/7 flex justify-center items-center">
+                        <img src="./icons/logo kemensos only.png" alt="Logo Kemensos" class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
+                    </div>
+                    <div class="w-5/7 text-center leading-tight space-y-0.5 px-2">
+                        <p class="text-xs sm:text-sm font-bold">KEMENTERIAN SOSIAL REPUBLIK INDONESIA</p>
+                        <p class="text-xs sm:text-sm font-bold">SEKRETARIAT JENDERAL</p>
+                        <p class="text-[11px] sm:text-xs font-bold leading-snug">PUSAT PENDIDIKAN, PELATIHAN, DAN PENGEMBANGAN PROFESI</p>
+                        <p class="text-sm sm:text-base font-bold uppercase tracking-wide mt-1">SEKOLAH RAKYAT TERINTEGRASI 2 KOTA PASURUAN</p>
+                        <p class="text-[10px] text-slate-700 mt-1">Jl. Erlangga Selatan No. 17 Kota Pasuruan, Prov. Jawa Timur 67115</p>
+                    </div>
+                    <div class="w-1/7 flex justify-center items-center">
+                        <img src="./icons/icon-512.png" alt="Logo Sekolah Rakyat" class="w-16 h-16 sm:w-20 sm:h-20 object-contain">
+                    </div>
+                </div>
+
+                <!-- BAGIAN 1: SURAT IZIN -->
+                <div class="space-y-3">
+                    <div class="text-center space-y-1 py-1">
+                        <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT PEMBERIAN IZIN ${izin.keperluan}</h3>
+                    </div>
+
+                    <div class="space-y-2 text-xs sm:text-sm">
+                        <p class="text-slate-700">Yang bertanda tangan di bawah ini memberikan izin kepada:</p>
+                        <table class="w-full pl-4 space-y-1">
+                            <tr><td class="w-44 font-semibold text-slate-600">Nama Siswa & NISN</td><td>: <b>${izin.namaSiswa}</b> (${izin.nisn})</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Jenjang / Kelas</td><td>: Kelas ${izin.kelas}-${izin.rombel || '-'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Keterangan</td><td>: ${izin.keterangan || '-'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Rencana Berangkat</td><td>: ${formatIndonesianDateTime(izin.waktuKeluar)} WIB</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Rencana Kembali</td><td>: ${formatIndonesianDateTime(izin.waktuKembali)} WIB</td></tr>
+                        </table>
+
+                        <p class="text-xs sm:text-sm pt-2">Demikian surat pemberian izin <b>${izin.keperluan}</b> ini untuk digunakan sebagaimana mestinya.</p>
+                    </div>
+
+                    ${sigBoxesHtml}
+                </div>
+
+                <div class="border-t-2 border-dashed border-slate-300 my-6 page-break"></div>
+
+                <!-- BAGIAN 2: SURAT KETERANGAN KEMBALI KE SEKOLAH -->
+                <div class="space-y-3 pt-2">
+                    <div class="text-center space-y-1 py-1">
+                        <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT KETERANGAN KEMBALI KE SEKOLAH</h3>
+                    </div>
+
+                    <div class="space-y-2 text-xs sm:text-sm">
+                        <p class="text-slate-700 leading-relaxed">
+                            Yang bertanda tangan di bawah ini telah menerima kembali siswa ke sekolah/asrama seusai keluar sekolah dengan izin. Adapun siswa <b>${izin.namaSiswa}</b> (Kelas ${izin.kelas}-${izin.rombel || '-'}) diterima kembali pada:
+                        </p>
+                        <table class="w-full pl-4 space-y-1">
+                            <tr><td class="w-36 font-semibold text-slate-600">Waktu Kembali</td><td>: ${isReturned ? formatIndonesianDateTime(izin.realisasi) + ' WIB' : '........................................................'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Pengantar</td><td>: ${returnDetails.pengantar || '........................................................'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Catatan</td><td>: ${returnDetails.catatan || '-'}</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-between pt-6 text-center text-xs signature-block-container items-start">
+                        <div class="w-48 flex flex-col items-center">
+                            <p class="font-semibold text-slate-700 mb-2">Pengantar</p>
+                            <div class="my-1">${returnPengantarQr}</div>
+                            <p class="font-bold underline text-slate-900 mt-2">${returnDetails.pengantar || '( ........................ )'}</p>
+                        </div>
+                        <div class="w-48 flex flex-col items-center">
+                            <p class="font-semibold text-slate-700 mb-2">${receiverInfo.tugas || 'Pegawai yang Menerima'}</p>
+                            <div class="my-1">${receiverQr}</div>
+                            <p class="font-bold underline text-slate-900 mt-2">${receiverInfo.nama || '( ........................ )'}</p>
+                            <p class="text-[11px] text-slate-600 mt-0.5">${receiverInfo.nip && receiverInfo.nip !== '-' ? 'NIP. ' + receiverInfo.nip : '&nbsp;'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('printLetterModal').classList.remove('hidden');
+            document.getElementById('printLetterModal').classList.add('flex');
+        }
+
+        function closePrintLetterModal() {
+            document.getElementById('printLetterModal').classList.remove('flex');
+            document.getElementById('printLetterModal').classList.add('hidden');
+        }
+
+        // --- INVENTARIS & MODUL BARANG ---
         function renderBarangContent() {
             const main = document.getElementById('mainContent');
             if (state.activeTab === 'barang') {
@@ -679,7 +1960,7 @@
                 main.innerHTML = renderPengembalianHTML();
             } else if (state.activeTab === 'riwayat') {
                 main.innerHTML = renderRiwayatHTML();
-            } else if (state.activeTab === 'cetaklaporan') {
+            } else if (state.activeTab === 'laporanbarang') {
                 main.innerHTML = renderCetakLaporanHTML();
             }
         }
@@ -781,46 +2062,7 @@
                             <div class="p-4 sm:p-6 pt-0 space-y-4">
                                 <p class="text-xs text-slate-500">Isi formulir ini untuk mendaftarkan barang baru.</p>
                                 <div id="newItemContainer" class="space-y-4">
-                                    ${state.newItemList.map((item, idx) => `
-                                        <div class="bg-white p-4 rounded-xl border border-orange-100 relative shadow-sm">
-                                            ${state.newItemList.length > 1 ? `
-                                                <button onclick="removeNewItemRow(${idx})" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1 text-xs font-bold" title="Hapus Baris Ini">
-                                                    <i class="fa-solid fa-xmark text-sm"></i>
-                                                </button>
-                                            ` : ''}
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                <div class="sm:col-span-2 lg:col-span-1">
-                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Barang Baru #${idx + 1}</label>
-                                                    <input type="text" id="newItemNama_${idx}" oninput="updateNewItemData(${idx}, 'nama', this.value)" value="${item.nama}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Proyektor Portable">
-                                                </div>
-                                                <div>
-                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
-                                                    <select onchange="updateNewItemData(${idx}, 'kategori', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                        ${CATEGORIES_LIST.map(cat => `<option value="${cat}" ${item.kategori === cat ? 'selected' : ''}>${cat}</option>`).join('')}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
-                                                    <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                        <option value="Perkantoran" ${item.sumber === 'Perkantoran' ? 'selected' : ''}>Perkantoran (A)</option>
-                                                        <option value="Persediaan" ${item.sumber === 'Persediaan' ? 'selected' : ''}>Persediaan (B)</option>
-                                                        <option value="Media Pembelajaran" ${item.sumber === 'Media Pembelajaran' ? 'selected' : ''}>Media Pembelajaran (C)</option>
-                                                        <option value="Aset Tetap" ${item.sumber === 'Aset Tetap' ? 'selected' : ''}>Aset Tetap (D)</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Stok Awal</label>
-                                                    <input type="number" min="0" oninput="updateNewItemData(${idx}, 'stok', this.value)" value="${item.stok}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                </div>
-                                                <div class="flex items-center pt-3">
-                                                    <label class="flex items-center gap-2 cursor-pointer">
-                                                        <input type="checkbox" onchange="updateNewItemData(${idx}, 'hanyaPinjam', this.checked)" ${item.hanyaPinjam ? 'checked' : ''} onkeydown="handleCheckKeydown(event, ${idx})" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-slate-300">
-                                                        <span class="text-xs font-semibold text-slate-700">Barang "Hanya Pinjam"</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                                    ${renderNewItemRowsHTML()}
                                 </div>
                                 <div class="pt-2">
                                     <button onclick="addNewItemRow()" class="w-full py-2.5 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 text-orange-600 font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
@@ -1017,7 +2259,7 @@
                             <span class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                                 <i class="fa-solid fa-file-lines text-orange-500"></i> Modul Cetak Laporan
                             </span>
-                           <input type="text" id="inputNoSurat" oninput="state.reportNoSurat = this.value" value="${state.reportNoSurat}" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500" placeholder="Masukkan nomor surat..."> <button onclick="handlePrintReport()" class="w-full sm:w-auto px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0">
+                           <button onclick="handlePrintReport()" class="w-full sm:w-auto px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0">
                                 <i class="fa-solid fa-print"></i> Cetak / Unduh Laporan
                             </button>
                         </div>
@@ -1070,7 +2312,7 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto bg-slate-50 pb-6 pr-1">
-                        <div id="printableReport" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 mx-auto max-w-4xl" style="font-family: 'Roboto', sans-serif;">
+                        <div id="printableReport" class="report-barang bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 mx-auto max-w-4xl" style="font-family: 'Roboto', sans-serif;">
                             <div class="flex items-center border-b-4 border-double border-black pb-4">
                                 <div class="w-1/7 flex justify-center items-center">
                                     <img src="./icons/logo kemensos only.png" alt="Logo Kemensos" class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
@@ -1089,7 +2331,6 @@
 
                             <div class="text-center space-y-1 pt-2">
                                 <h4 class="font-bold text-sm sm:text-base uppercase underline">LAPORAN ${state.reportJenisLaporan === 'keluar' ? 'TRANSAKSI BARANG KELUAR' : 'PENAMBAHAN BARANG MASUK'}</h4>
-                                <p class="text-xs text-slate-600">Nomor: ${state.reportNoSurat || '(Belum diisi)'}</p>
                                 <p class="text-xs text-slate-500">Periode: ${state.reportStartDate} s.d. ${state.reportEndDate}</p>
                             </div>
 
@@ -1180,12 +2421,6 @@
         }
 
         function handlePrintReport() {
-            if (!state.reportNoSurat || state.reportNoSurat.trim() === '') {
-                showToast("Nomor surat wajib diisi sebelum mencetak laporan!", true);
-                const suratInput = document.getElementById('inputNoSurat');
-                if (suratInput) suratInput.focus();
-                return;
-            }
             window.print();
         }
 
@@ -1242,9 +2477,62 @@
             container.innerHTML = getAddStockCategoriesHTML(filteredBarangExisting);
         }
 
+        function escapeAttr(v) {
+            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        function renderNewItemRowsHTML() {
+            return state.newItemList.map((item, idx) => `
+                                        <div class="bg-white p-4 rounded-xl border border-orange-100 relative shadow-sm">
+                                            ${state.newItemList.length > 1 ? `
+                                                <button onclick="removeNewItemRow(${idx})" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1 text-xs font-bold" title="Hapus Baris Ini">
+                                                    <i class="fa-solid fa-xmark text-sm"></i>
+                                                </button>
+                                            ` : ''}
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                <div class="sm:col-span-2 lg:col-span-1">
+                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Barang Baru #${idx + 1}</label>
+                                                    <input type="text" id="newItemNama_${idx}" oninput="updateNewItemData(${idx}, 'nama', this.value)" value="${escapeAttr(item.nama)}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Proyektor Portable">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kategori</label>
+                                                    <select onchange="updateNewItemData(${idx}, 'kategori', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                        ${CATEGORIES_LIST.map(cat => `<option value="${cat}" ${item.kategori === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Sumber Perolehan</label>
+                                                    <select onchange="updateNewItemData(${idx}, 'sumber', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                        <option value="Perkantoran" ${item.sumber === 'Perkantoran' ? 'selected' : ''}>Perkantoran (A)</option>
+                                                        <option value="Persediaan" ${item.sumber === 'Persediaan' ? 'selected' : ''}>Persediaan (B)</option>
+                                                        <option value="Media Pembelajaran" ${item.sumber === 'Media Pembelajaran' ? 'selected' : ''}>Media Pembelajaran (C)</option>
+                                                        <option value="Aset Tetap" ${item.sumber === 'Aset Tetap' ? 'selected' : ''}>Aset Tetap (D)</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Stok Awal</label>
+                                                    <input type="number" min="0" oninput="updateNewItemData(${idx}, 'stok', this.value)" value="${item.stok}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                </div>
+                                                <div class="flex items-center pt-3">
+                                                    <label class="flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox" onchange="updateNewItemData(${idx}, 'hanyaPinjam', this.checked)" ${item.hanyaPinjam ? 'checked' : ''} onkeydown="handleCheckKeydown(event, ${idx})" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-slate-300">
+                                                        <span class="text-xs font-semibold text-slate-700">Barang "Hanya Pinjam"</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+            `).join('');
+        }
+
+        // Perbarui hanya daftar baris barang baru (tanpa merender ulang halaman)
+        function refreshNewItemRows() {
+            const container = document.getElementById('newItemContainer');
+            if (container) container.innerHTML = renderNewItemRowsHTML();
+        }
+
         function addNewItemRow() {
             state.newItemList.push({ nama: '', kategori: 'ATK', sumber: 'Perkantoran', stok: 0, hanyaPinjam: false });
-            renderBarangContent();
+            refreshNewItemRows();
             setTimeout(() => {
                 let newIdx = state.newItemList.length - 1;
                 let nextInput = document.getElementById(`newItemNama_${newIdx}`);
@@ -1261,7 +2549,7 @@
 
         function removeNewItemRow(idx) {
             state.newItemList.splice(idx, 1);
-            renderBarangContent();
+            refreshNewItemRows();
         }
 
         function updateNewItemData(idx, field, val) {
@@ -1859,6 +3147,129 @@
             setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3500);
+        }
+
+        // --- LAPORAN PERIZINAN ---
+        function getFilteredPerizinanReport() {
+            return state.perizinanSiswa.filter(p => {
+                const matchJenis = state.reportIzinJenis === 'semua' || String(p.keperluan || '').toLowerCase() === state.reportIzinJenis;
+                const matchStatus = state.reportIzinStatus === 'semua' || getIzinStatusLabel(p) === state.reportIzinStatus;
+                return matchJenis && matchStatus;
+            });
+        }
+
+        function setReportIzinFilter(field, val) {
+            state[field] = val;
+            renderLaporanPerizinanContent();
+        }
+
+        function renderLaporanPerizinanContent() {
+            const main = document.getElementById('mainContent');
+            const jenisOpts = [['semua', 'Semua Jenis Izin'], ...Object.entries(KEPERLUAN_LABEL)];
+            const statusOpts = [['semua', 'Semua Status'], ['Pending', 'Pending'], ['Aktif', 'Aktif'], ['Selesai', 'Selesai']];
+            const activeFilterCount = (state.reportIzinJenis !== 'semua' ? 1 : 0) + (state.reportIzinStatus !== 'semua' ? 1 : 0);
+            main.innerHTML = `
+                <div class="h-full flex flex-col overflow-hidden space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm no-print shrink-0 overflow-hidden">
+                        <div class="p-3 sm:p-4 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <span class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-file-lines text-orange-500"></i> Modul Cetak Laporan Perizinan Siswa
+                            </span>
+                            <button onclick="window.print()" class="w-full sm:w-auto px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0">
+                                <i class="fa-solid fa-print"></i> Cetak / Unduh Laporan
+                            </button>
+                        </div>
+                        <details class="bg-white border-t border-slate-200" ${state.reportIzinFilterOpen ? 'open' : ''} ontoggle="state.reportIzinFilterOpen = this.open">
+                            <summary class="p-3 sm:p-4 cursor-pointer text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between gap-2 select-none hover:bg-slate-50 transition bg-white">
+                                <span class="flex items-center gap-2 flex-wrap">
+                                    <i class="fa-solid fa-filter text-orange-500"></i> Pengaturan & Filter Laporan
+                                    ${activeFilterCount > 0 ? `<span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] normal-case tracking-normal">${activeFilterCount} filter aktif</span>` : ''}
+                                </span>
+                                <i class="fa-solid fa-chevron-down collapse-chevron text-slate-500"></i>
+                            </summary>
+                            <div class="p-3 sm:p-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Jenis Izin</label>
+                                <select onchange="setReportIzinFilter('reportIzinJenis', this.value)" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    ${jenisOpts.map(([v, l]) => `<option value="${v}" ${state.reportIzinJenis === v ? 'selected' : ''}>${l}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                                <select onchange="setReportIzinFilter('reportIzinStatus', this.value)" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    ${statusOpts.map(([v, l]) => `<option value="${v}" ${state.reportIzinStatus === v ? 'selected' : ''}>${l}</option>`).join('')}
+                                </select>
+                            </div>
+                            </div>
+                        </details>
+                    </div>
+                    <div class="flex-1 overflow-y-auto bg-slate-50 pb-6 pr-1">
+                        ${renderLaporanPerizinanHTML()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLaporanPerizinanHTML() {
+            const data = getFilteredPerizinanReport();
+            const jenisLabel = state.reportIzinJenis === 'semua' ? 'Semua Jenis Izin' : KEPERLUAN_LABEL[state.reportIzinJenis];
+            const statusLabel = state.reportIzinStatus === 'semua' ? 'Semua Status' : state.reportIzinStatus;
+            return `
+                <div class="max-w-5xl mx-auto min-w-0">
+                    <div id="printableReport" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4 text-xs font-sans min-w-0">
+                        <div class="text-center border-b-2 border-black pb-3 space-y-0.5">
+                            <h4 class="font-bold text-sm">SEKOLAH RAKYAT TERINTEGRASI 2 KOTA PASURUAN</h4>
+                            <p class="text-[11px] text-slate-700 font-semibold">Laporan Rekapitulasi Perizinan Siswa</p>
+                            <p class="text-[10px] text-slate-600">${jenisLabel} &bull; ${statusLabel} &bull; Total ${data.length} data</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full table-fixed text-left border-collapse text-[10px] sm:text-[11px] leading-snug">
+                                <colgroup>
+                                    <col style="width:4%"><col style="width:15%"><col style="width:8%"><col style="width:11%"><col style="width:14%">
+                                    <col style="width:11%"><col style="width:11%"><col style="width:16%"><col style="width:10%">
+                                </colgroup>
+                                <thead>
+                                    <tr class="bg-slate-100 border border-slate-300">
+                                        <th class="p-1.5 border text-center">No</th>
+                                        <th class="p-1.5 border">Nama Siswa</th>
+                                        <th class="p-1.5 border">Kelas</th>
+                                        <th class="p-1.5 border">Jenis Izin</th>
+                                        <th class="p-1.5 border">Keterangan</th>
+                                        <th class="p-1.5 border">Waktu Keluar</th>
+                                        <th class="p-1.5 border">Realisasi Kembali</th>
+                                        <th class="p-1.5 border">Penandatangan</th>
+                                        <th class="p-1.5 border">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.length === 0 ? `<tr><td colspan="9" class="p-4 border text-center text-slate-400">Tidak ada data perizinan sesuai filter.</td></tr>` : data.map((p, idx) => {
+                                        const sigs = p.signatures || {};
+                                        return `
+                                            <tr class="align-top">
+                                                <td class="p-1.5 border text-center">${idx + 1}</td>
+                                                <td class="p-1.5 border font-medium break-words">${p.namaSiswa}</td>
+                                                <td class="p-1.5 border">${p.kelas}-${p.rombel || '-'}</td>
+                                                <td class="p-1.5 border break-words">${KEPERLUAN_LABEL[String(p.keperluan || '').toLowerCase()] || p.keperluan || '-'}</td>
+                                                <td class="p-1.5 border italic break-words">${p.keterangan || '-'}</td>
+                                                <td class="p-1.5 border">${formatShortDateTime(p.waktuKeluar)}</td>
+                                                <td class="p-1.5 border">${formatShortDateTime(p.realisasi)}</td>
+                                                <td class="p-1.5 border">
+                                                    <div class="flex flex-wrap gap-1">
+                                                        ${Object.entries(sigs).map(([role, sig]) => `
+                                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold break-words ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                                        `).join('')}
+                                                    </div>
+                                                </td>
+                                                <td class="p-1.5 border font-bold">${getIzinStatusLabel(p)}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         window.onload = () => {
