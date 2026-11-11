@@ -120,7 +120,7 @@
     <div id="signModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeSignModal()">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-check text-orange-500"></i> Penandatanganan Dokumen
+                <i class="fa-solid fa-signature text-orange-500"></i> Penandatanganan Dokumen
             </h3>
             <div id="signModalContent" class="space-y-3"></div>
             <div class="flex gap-2 pt-2">
@@ -320,10 +320,16 @@
 
         function getJenjang(kelas) {
             const num = parseInt(kelas) || 0;
-            if (num >= 1 && num <= 6) return 'SD';
-            if (num >= 7 && num <= 9) return 'SMP';
-            if (num >= 10 && num <= 12) return 'SMA';
-            return 'Lainnya';
+            if (num >= 1 && num <= 6) return 'SRD';
+            if (num >= 7 && num <= 9) return 'SRMP';
+            if (num >= 10 && num <= 12) return 'SRMA';
+            return 'Data Kelas Belum Terdaftar';
+        }
+
+        // Peran penandatangan Wali Asuh / Wali Asrama sesuai jenjang siswa (mis. "Wali Asuh/Wali Asrama SRD")
+        function getWaliAsuhRole(kelas) {
+            const j = getJenjang(kelas);
+            return ['SRD', 'SRMP', 'SRMA'].includes(j) ? `Wali Asuh/Wali Asrama ${j}` : 'Wali Asuh/Wali Asrama';
         }
 
         function sortStudents(a, b) {
@@ -383,7 +389,8 @@
                     tempatLahir: String(s.tempat_lahir || ''),
                     tanggalLahir: String(s.tanggal_lahir || ''),
                     namaOrtuWali: String(s.nama_ortu_wali || ''),
-                    alamat: String(s.alamat || '')
+                    alamat: String(s.alamat || ''),
+                    kamar: String(s.kamar || '')
                 })).sort(sortStudents);
 
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -441,6 +448,7 @@
                         namaSiswa: siswaObj ? siswaObj.nama : 'Siswa (' + i.nisn + ')',
                         kelas: i.kelas || (siswaObj ? siswaObj.kelas : '-'),
                         rombel: siswaObj ? siswaObj.rombel : '',
+                        kamar: siswaObj ? (siswaObj.kamar || '') : '',
                         keperluan: i.keperluan || '-',
                         keterangan: i.keterangan || '-',
                         waktuKeluar: i.waktu_keluar || '-',
@@ -591,9 +599,9 @@
 
         function getPerizinanTabs() {
             return [
-                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-check' },
+                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-signature' },
                 { id: 'aktif', label: 'Aktif', icon: 'fa-person-walking-arrow-right' },
-                { id: 'riwayat', label: 'Riwayat', icon: 'fa-list-check' }
+                { id: 'riwayat', label: 'Riwayat', icon: 'fa-clock-rotate-left' }
             ];
         }
 
@@ -757,7 +765,7 @@
                                                 <div class="flex gap-1.5 shrink-0">
                                                     ${canSign ? `
                                                         <button onclick="openSignModal('${p.idIzin}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-medium transition" title="Tanda Tangan">
-                                                            <i class="fa-solid fa-check"></i> <span class="hidden sm:inline">Tanda Tangan</span>
+                                                            <i class="fa-solid fa-signature"></i> <span class="hidden sm:inline">Tanda Tangan</span>
                                                         </button>
                                                     ` : ''}
                                                     <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px] font-medium transition" title="Cetak Surat">
@@ -782,7 +790,7 @@
                         <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <i class="fa-solid fa-list-check text-orange-500"></i> Barang yang sedang dipinjam
+                                    <i class="fa-solid fa-clock-rotate-left text-orange-500"></i> Barang yang sedang dipinjam
                                 </h3>
                                 <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${activeLoans.length} Aktivitas</span>
                             </div>
@@ -907,7 +915,7 @@
             const main = document.getElementById('mainContent');
             const userTugas = tugasSource(state.user).toLowerCase();
 
-            const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'petugas kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh'];
+            const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'Tenaga Kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh', 'wali asrama'];
             const isSigner = state.user.isAdmin || allPossibleRoles.some(role => userTugas.includes(role));
 
             let perizinanTabs = getPerizinanTabs();
@@ -1124,18 +1132,20 @@
                 : '';
             if (filtered.length === 0) return hiddenNote + '<p class="text-xs text-slate-400 text-center py-4">Tidak ada data siswa yang dapat diajukan.</p>';
 
-            const groups = { SD: [], SMP: [], SMA: [], Lainnya: [] };
+            const JENJANG_ORDER = ['SRD', 'SRMP', 'SRMA', 'Data Kelas Belum Terdaftar'];
+            const JENJANG_KELAS = { SRD: '1-6', SRMP: '7-9', SRMA: '10-12' };
+            const groups = { 'SRD': [], 'SRMP': [], 'SRMA': [], 'Data Kelas Belum Terdaftar': [] };
             filtered.forEach(s => {
                 const j = getJenjang(s.kelas);
                 if (groups[j]) groups[j].push(s);
-                else groups['Lainnya'].push(s);
+                else groups['Data Kelas Belum Terdaftar'].push(s);
             });
 
             let html = hiddenNote;
-            ['SD', 'SMP', 'SMA', 'Lainnya'].forEach(jName => {
+            JENJANG_ORDER.forEach(jName => {
                 const list = groups[jName];
                 if (list.length === 0) return;
-                html += `<div class="mb-2"><p class="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-1 border-b pb-0.5">Jenjang ${jName} (Kelas ${jName === 'SD' ? '1-6' : jName === 'SMP' ? '7-9' : jName === 'SMA' ? '10-12' : 'Lainnya'})</p>`;
+                html += `<div class="mb-2"><p class="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-1 border-b pb-0.5">${JENJANG_KELAS[jName] ? `Jenjang ${jName} (Kelas ${JENJANG_KELAS[jName]})` : jName}</p>`;
                 list.forEach(s => {
                     const isChecked = state.izinSelectedSiswa.includes(s.nisn);
                     html += `
@@ -1232,10 +1242,10 @@
                     const kRStr = k && r ? `${k}-${r}` : (k ? k : '');
                     
                     let roles = [];
-                    if (state.izinKeperluan === 'meninggalkan sekolah') roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan'];
-                    else if (state.izinKeperluan === 'pemeriksaan kesehatan') roles = ['Petugas Kesehatan', 'Kepala UKSR'];
-                    else if (state.izinKeperluan === 'meninggalkan asrama') roles = ['Wali Asuh', 'Waka Keasramaan'];
-                    else if (state.izinKeperluan === 'kepulangan panjang') roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan', 'Waka Keasramaan'];
+                    if (state.izinKeperluan === 'meninggalkan sekolah') roles = ['Waka Kesiswaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
+                    else if (state.izinKeperluan === 'pemeriksaan kesehatan') roles = ['Kepala UKSR', 'Tenaga Kesehatan'];
+                    else if (state.izinKeperluan === 'meninggalkan asrama') roles = ['Waka Keasramaan', getWaliAsuhRole(k)];
+                    else if (state.izinKeperluan === 'kepulangan panjang') roles = ['Waka Kesiswaan', 'Waka Keasramaan', ];
                     else roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
 
                     rolesText.innerHTML = `Peran penandatangan: <b>${roles.join(', ')}</b>`;
@@ -1331,10 +1341,10 @@
 
                     const getRoles = (keperluan) => {
                         switch(keperluan) {
-                            case 'meninggalkan sekolah': return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan'];
-                            case 'pemeriksaan kesehatan': return ['Petugas Kesehatan', 'Kepala UKSR'];
-                            case 'meninggalkan asrama': return ['Wali Asuh', 'Waka Keasramaan'];
-                            case 'kepulangan panjang': return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas', 'Waka Kesiswaan', 'Waka Keasramaan'];
+                            case 'meninggalkan sekolah': return ['Waka Kesiswaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
+                            case 'pemeriksaan kesehatan': return ['Kepala UKSR', 'Tenaga Kesehatan'];
+                            case 'meninggalkan asrama': return ['Waka Keasramaan', getWaliAsuhRole(siswaObj ? siswaObj.kelas : '')];
+                            case 'kepulangan panjang': return ['Waka Kesiswaan', 'Waka Keasramaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
                             default: return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
                         }
                     };
@@ -1449,8 +1459,8 @@
                 if (m[2]) return m[2] === String(tRombel).toLowerCase();
                 return true;
             }
-            if (r.includes('petugas kesehatan') || r.includes('kesehatan') || r.includes('nakes')) {
-                return s.includes('petugas kesehatan') || s.includes('kesehatan') || s.includes('nakes');
+            if (r.includes('Tenaga Kesehatan') || r.includes('kesehatan') || r.includes('nakes')) {
+                return s.includes('Tenaga Kesehatan') || s.includes('kesehatan') || s.includes('nakes');
             }
             if (r.includes('kepala uksr') || r.includes('uks')) {
                 return s.includes('kepala uksr') || s.includes('uksr') || s.includes('uks');
@@ -1461,7 +1471,15 @@
             if (r.includes('waka keasramaan')) {
                 return s.includes('waka keasramaan') || (s.includes('waka') && (s.includes('asrama') || s.includes('keasramaan')));
             }
-            if (r.includes('wali asuh')) return s.includes('wali asuh');
+            if (r.includes('wali asuh') || r.includes('wali asrama')) {
+                if (!(s.includes('wali asuh') || s.includes('wali asrama'))) return false;
+                // Jenjang target: dari nama peran, jika tidak ada dari kelas siswa
+                const tok = x => (String(x).toLowerCase().match(/\b(srd|srmp|srma)\b/) || [])[1] || null;
+                const target = tok(r) || tok(getJenjang(kelas));
+                const segJ = tok(s);
+                if (segJ && target && segJ !== target) return false;
+                return true;
+            }
             return s.includes(r);
         }
 
@@ -1553,7 +1571,7 @@
                 targetRole = matchedRole;
             }
 
-            const knownRole = (r) => ['wali kelas', 'kesehatan', 'nakes', 'uks', 'waka', 'wali asuh'].some(k => r.toLowerCase().includes(k));
+            const knownRole = (r) => ['wali kelas', 'kesehatan', 'nakes', 'uks', 'waka', 'wali asuh', 'wali asrama'].some(k => r.toLowerCase().includes(k));
             const filterPenggunaByRole = (roleName) => {
                 if (!knownRole(roleName)) return state.penggunaList;
                 return state.penggunaList.filter(u => userMatchesRole(u, roleName, kelasSiswa, rombelSiswa));
@@ -1562,24 +1580,40 @@
             let html = '';
             if (state.user.isAdmin) {
                 let availableRoles = Object.keys(sigs);
+                const adminSelf = `<option value="__self__" data-nama="${state.user.nama}">Atas nama saya (${state.user.nama})</option>`;
+                const optionLabel = (u, role) => {
+                    const seg = findRoleSegment(u, role, kelasSiswa, rombelSiswa) || tugasSource(u) || 'Pegawai';
+                    return `<option value="${u.nip}" data-nama="${u.nama}">${u.nama} (${seg}) - NIP: ${u.nip}</option>`;
+                };
                 html = `
                     <div class="space-y-3">
                         <label class="block text-xs font-semibold uppercase text-slate-500">Pilih Peran yang Ingin Ditandatangani (Bisa > 1)</label>
-                        <p class="text-[11px] text-slate-400">Setiap peran yang dipilih akan otomatis mencatat nama pegawai yang bertugas pada peran tersebut dari database.</p>
-                        <div class="space-y-2 max-h-48 overflow-y-auto p-2 bg-slate-50 border rounded-xl">
-                            ${availableRoles.map(r => `
-                                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                                    <input type="checkbox" name="adminRoleCheckbox" value="${r}" checked class="w-4 h-4 text-orange-500 rounded">
-                                    <span>${r}</span>
-                                </label>
-                            `).join('')}
+                        <p class="text-[11px] text-slate-400">Untuk setiap peran, pilih pegawai yang menandatangani. Pilih "Atas nama saya" jika tidak ada pegawai yang sesuai.</p>
+                        <div class="space-y-2 max-h-64 overflow-y-auto p-2 bg-slate-50 border rounded-xl">
+                            ${availableRoles.map(r => {
+                                const signed = sigs[r] && sigs[r].status === 'Disetujui';
+                                const eligible = knownRole(r) ? filterPenggunaByRole(r) : state.penggunaList;
+                                const defaultSelf = !knownRole(r) || eligible.length === 0;
+                                return `
+                                <div class="p-2 bg-white border border-slate-200 rounded-lg space-y-1.5">
+                                    <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                                        <input type="checkbox" name="adminRoleCheckbox" value="${r}" ${signed ? '' : 'checked'} class="w-4 h-4 text-orange-500 rounded">
+                                        <span>${r}</span>
+                                        ${signed ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-bold">Sudah ditandatangani</span>' : ''}
+                                    </label>
+                                    <select data-admin-signer="${r}" class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                                        ${eligible.map((u, i) => optionLabel(u, r).replace('<option ', `<option ${(!defaultSelf && i === 0) ? 'selected ' : ''}`)).join('')}
+                                        ${adminSelf.replace('<option ', `<option ${defaultSelf ? 'selected ' : ''}`)}
+                                    </select>
+                                </div>`;
+                            }).join('')}
                         </div>
                     </div>
                 `;
             } else {
                 const filteredUsers = filterPenggunaByRole(targetRole);
-                if (targetRole.toLowerCase().includes('wali asuh')) {
-                    // Wali Asuh menandatangani atas nama sendiri (tanpa memilih pengguna)
+                if (targetRole.toLowerCase().includes('wali asuh') || targetRole.toLowerCase().includes('wali asrama')) {
+                    // Wali Asuh / Wali Asrama menandatangani atas nama sendiri (tanpa memilih pengguna)
                     html = `
                         <p class="text-xs text-slate-600 mb-2">Anda akan menandatangani sebagai: <b class="text-slate-900">${targetRole}</b></p>
                         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
@@ -1620,12 +1654,20 @@
                 return;
             }
             let selectedAdminRoles = [];
+            const adminChoices = {};
             let singleSignerNip = state.user.nip;
             let singleSignerName = state.user.nama;
 
             if (state.user.isAdmin) {
                 const checkboxes = document.querySelectorAll('input[name="adminRoleCheckbox"]:checked');
                 checkboxes.forEach(cb => selectedAdminRoles.push(cb.value));
+                document.querySelectorAll('select[data-admin-signer]').forEach(sel => {
+                    const opt = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+                    adminChoices[sel.getAttribute('data-admin-signer')] = {
+                        nip: sel.value,
+                        nama: opt ? opt.getAttribute('data-nama') : ''
+                    };
+                });
             } else {
                 let nonAdminRoleEl = document.getElementById('nonAdminRole');
                 if (nonAdminRoleEl) selectedAdminRoles.push(nonAdminRoleEl.value);
@@ -1665,15 +1707,18 @@
                         let signJabatan = roleName;
 
                         if (state.user.isAdmin) {
-                            const matchedUser = state.penggunaList.find(u => userMatchesRole(u, roleName, kelasSiswa, rombelSiswa));
-                            if (matchedUser) {
-                                signName = matchedUser.nama;
-                                signNip = matchedUser.nip;
-                                signJabatan = findRoleSegment(matchedUser, roleName, kelasSiswa, rombelSiswa) || roleName;
+                            const choice = adminChoices[roleName];
+                            const chosenUser = (choice && choice.nip && choice.nip !== '__self__') ? findPenggunaByNip(choice.nip) : null;
+                            if (chosenUser) {
+                                signName = chosenUser.nama;
+                                signNip = chosenUser.nip;
+                                signJabatan = findRoleSegment(chosenUser, roleName, kelasSiswa, rombelSiswa) || tugasSource(chosenUser) || roleName;
                             } else {
-                                // Tidak ada pegawai terdaftar untuk peran ini: jabatan dicatat apa adanya (bukan peran)
-                                unmatchedRoles.push(roleName);
+                                // Atas nama admin sendiri: jabatan dicatat apa adanya (bukan nama peran)
+                                signName = state.user.nama;
+                                signNip = state.user.nip;
                                 signJabatan = tugasSource(state.user) || 'Administrator';
+                                if (!state.penggunaList.some(u => userMatchesRole(u, roleName, kelasSiswa, rombelSiswa))) unmatchedRoles.push(roleName);
                             }
                         } else {
                             const signerUser = findPenggunaByNip(signNip);
@@ -1802,8 +1847,8 @@
             let sigBoxesHtml = '';
 
             if (totalSigs <= 2) {
-                let leftSignerRole = sigKeys[1] || sigKeys[0] || 'Mengetahui';
-                let rightSignerRole = sigKeys[0] || 'Petugas';
+                let leftSignerRole = sigKeys[0] || sigKeys[1] || 'Mengetahui';
+                let rightSignerRole = sigKeys[1] || 'Petugas';
                 let leftSigData = resolveSigner(izin, leftSignerRole);
                 let rightSigData = resolveSigner(izin, rightSignerRole);
 
@@ -1903,7 +1948,8 @@
                         <p class="text-slate-700">Yang bertanda tangan di bawah ini memberikan izin kepada:</p>
                         <table class="w-full pl-4 space-y-1">
                             <tr><td class="w-44 font-semibold text-slate-600">Nama Siswa & NISN</td><td>: <b>${izin.namaSiswa}</b> (${izin.nisn})</td></tr>
-                            <tr><td class="font-semibold text-slate-600">Jenjang / Kelas</td><td>: Kelas ${izin.kelas}-${izin.rombel || '-'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Jenjang / Kelas</td><td>: ${getJenjang(izin.kelas)} / Kelas ${izin.kelas}-${izin.rombel || '-'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Kamar</td><td>: ${izin.kamar || '-'}</td></tr>
                             <tr><td class="font-semibold text-slate-600">Keterangan</td><td>: ${izin.keterangan || '-'}</td></tr>
                             <tr><td class="font-semibold text-slate-600">Rencana Berangkat</td><td>: ${formatIndonesianDateTime(izin.waktuKeluar)} WIB</td></tr>
                             <tr><td class="font-semibold text-slate-600">Rencana Kembali</td><td>: ${formatIndonesianDateTime(izin.waktuKembali)} WIB</td></tr>
@@ -1994,7 +2040,7 @@
                                     <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
                                 </button>
                                 <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="flex-1 sm:flex-none px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 text-center">
-                                    <i class="fa-solid fa-list-check mr-1"></i> Pinjam
+                                    <i class="fa-solid fa-clock-rotate-left mr-1"></i> Pinjam
                                 </button>
                             </div>
                         </div>
