@@ -120,7 +120,7 @@
     <div id="signModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeSignModal()">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-signature text-orange-500"></i> Penandatanganan Dokumen
+                <i class="fa-solid fa-check text-orange-500"></i> Penandatanganan Dokumen
             </h3>
             <div id="signModalContent" class="space-y-3"></div>
             <div class="flex gap-2 pt-2">
@@ -589,6 +589,19 @@
             ];
         }
 
+        function getPerizinanTabs() {
+            return [
+                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-check' },
+                { id: 'aktif', label: 'Aktif', icon: 'fa-person-walking-arrow-right' },
+                { id: 'riwayat', label: 'Riwayat', icon: 'fa-list-check' }
+            ];
+        }
+
+        function setPerizinanSubTab(id) {
+            state.perizinanSubTab = id;
+            render();
+        }
+
         function getMainTabs() {
             const at = state.activeTab;
             return [
@@ -606,6 +619,14 @@
             let subTitle = '';
             if (BARANG_TAB_IDS.includes(state.activeTab)) { subTabs = getBarangTabs(); subTitle = 'Submenu Inventaris'; }
             else if (LAPORAN_TAB_IDS.includes(state.activeTab)) { subTabs = getLaporanTabs(); subTitle = 'Submenu Laporan'; }
+
+            // Submenu Perizinan: hanya di sidebar (layar lebar). Pada layar sempit tetap di dalam halaman.
+            let sidebarSubTabs = subTabs;
+            let sidebarSubTitle = subTitle;
+            if (state.activeTab === 'perizinan') {
+                sidebarSubTitle = 'Submenu Perizinan';
+                sidebarSubTabs = getPerizinanTabs().map(t => ({ ...t, action: `setPerizinanSubTab('${t.id}')`, active: state.perizinanSubTab === t.id }));
+            }
 
             return `
                 <div class="h-full flex flex-col bg-slate-50 overflow-hidden">
@@ -633,11 +654,11 @@
                                 </button>
                             `).join('')}
 
-                            ${subTabs ? `
+                            ${sidebarSubTabs ? `
                                 <div class="pt-4 mt-4 border-t border-slate-800 space-y-1">
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-orange-400 px-3 mb-1">${subTitle}</p>
-                                    ${subTabs.map(tab => `
-                                        <button onclick="switchTab('${tab.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${state.activeTab === tab.id ? 'bg-orange-500/20 text-orange-400 font-bold border border-orange-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-orange-400 px-3 mb-1">${sidebarSubTitle}</p>
+                                    ${sidebarSubTabs.map(tab => `
+                                        <button onclick="${tab.action || `switchTab('${tab.id}')`}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${(tab.action ? tab.active : state.activeTab === tab.id) ? 'bg-orange-500/20 text-orange-400 font-bold border border-orange-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
                                             <i class="fa-solid ${tab.icon} w-4"></i><span>${tab.label}</span>
                                         </button>
                                     `).join('')}
@@ -648,11 +669,11 @@
                         <!-- KONTEN UTAMA -->
                         <div class="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 min-w-0">
                             <!-- SUBNAV KHUSUS SMARTPHONE (HORIZONTAL) -->
-                            ${subTabs ? `
-                                <nav aria-label="${subTitle}" class="md:hidden bg-white border-b border-slate-200 px-2 py-2 shrink-0 z-20 no-print">
+                            ${sidebarSubTabs ? `
+                                <nav aria-label="${sidebarSubTitle}" class="md:hidden bg-white border-b border-slate-200 px-2 py-2 shrink-0 z-20 no-print">
                                     <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                                        ${subTabs.map(tab => `
-                                            <button onclick="switchTab('${tab.id}')" class="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${state.activeTab === tab.id ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 bg-slate-50'}">
+                                        ${sidebarSubTabs.map(tab => `
+                                            <button onclick="${tab.action || `switchTab('${tab.id}')`}" class="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${(tab.action ? tab.active : state.activeTab === tab.id) ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 bg-slate-50'}">
                                                 <i class="fa-solid ${tab.icon}"></i><span>${tab.label}</span>
                                             </button>
                                         `).join('')}
@@ -761,7 +782,7 @@
                         <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <i class="fa-solid fa-clock-rotate-left text-orange-500"></i> Barang yang sedang dipinjam
+                                    <i class="fa-solid fa-list-check text-orange-500"></i> Barang yang sedang dipinjam
                                 </h3>
                                 <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${activeLoans.length} Aktivitas</span>
                             </div>
@@ -889,11 +910,7 @@
             const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'petugas kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh'];
             const isSigner = state.user.isAdmin || allPossibleRoles.some(role => userTugas.includes(role));
 
-            let perizinanTabs = [
-                { id: 'persetujuan', label: 'Persetujuan' },
-                { id: 'aktif', label: 'Aktif' },
-                { id: 'riwayat', label: 'Riwayat' }
-            ];
+            let perizinanTabs = getPerizinanTabs();
 
             if (!perizinanTabs.some(t => t.id === state.perizinanSubTab)) {
                 state.perizinanSubTab = isSigner ? 'persetujuan' : 'aktif';
@@ -924,13 +941,6 @@
                             <p class="text-xs text-slate-500">Buat dan pantau surat izin keluar/masuk siswa dengan alur tanda tangan peran.</p>
                         </div>
                         <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-                            <div class="flex bg-slate-100 p-1 rounded-xl">
-                                ${perizinanTabs.map(tab => `
-                                    <button onclick="state.perizinanSubTab = '${tab.id}'; render();" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${state.perizinanSubTab === tab.id ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
-                                        ${tab.label}
-                                    </button>
-                                `).join('')}
-                            </div>
                             <button onclick="openCreateIzinModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl transition shadow flex items-center gap-1.5 shrink-0">
                                 <i class="fa-solid fa-plus"></i> Buat Izin
                             </button>
@@ -1984,7 +1994,7 @@
                                     <i class="fa-solid fa-hand-holding mr-1"></i> Ambil
                                 </button>
                                 <button onclick="confirmAction('Pinjam')" id="btnPinjam" class="flex-1 sm:flex-none px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-orange-500/20 text-center">
-                                    <i class="fa-solid fa-clock-rotate-left mr-1"></i> Pinjam
+                                    <i class="fa-solid fa-list-check mr-1"></i> Pinjam
                                 </button>
                             </div>
                         </div>
@@ -1994,11 +2004,12 @@
                                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400"><i class="fa-solid fa-search"></i></span>
                                 <input type="text" id="searchInput" oninput="handleSearchInput(this.value)" value="${state.searchQuery}" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white" placeholder="Cari nama, ID, kategori...">
                             </div>
-                            <!-- Kategori tanpa scroll horizontal (Flex Wrap) -->
-                            <div class="flex items-center flex-wrap gap-1.5 w-full md:w-auto">
-                                ${filterCategories.map(cat => `
-                                    <button onclick="filterCategory('${cat}')" class="px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap transition ${state.selectedCategory === cat ? 'bg-orange-500 text-white shadow-sm' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'}">${cat}</button>
-                                `).join('')}
+                            <!-- Kategori (dropdown) -->
+                            <div class="w-full md:w-64">
+                                <label for="categorySelect" class="sr-only">Kategori</label>
+                                <select id="categorySelect" onchange="filterCategory(this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    ${filterCategories.map(cat => `<option value="${cat}" ${state.selectedCategory === cat ? 'selected' : ''}>${cat === 'Semua' ? 'Semua Kategori' : cat}</option>`).join('')}
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -2257,7 +2268,7 @@
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm no-print shrink-0 overflow-hidden">
                         <div class="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                             <span class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-file-lines text-orange-500"></i> Laporan Inventaris
+                                <i class="fa-solid fa-file-lines text-orange-500"></i> Modul Cetak Laporan
                             </span>
                            <button onclick="handlePrintReport()" class="w-full sm:w-auto px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0">
                                 <i class="fa-solid fa-print"></i> Cetak / Unduh Laporan
@@ -2357,17 +2368,17 @@
                             <div class="pt-8 page-break-inside-avoid text-xs space-y-8">
                                 <div class="grid grid-cols-2 gap-8">
                                     <div class="text-center space-y-16">
-                                        <p>Mengetahui,<br>Waka Sarana & Prasarana</p>
-                                        <div>
-                                            <p class="font-bold underline">Muhammad Nur Kholis, S.Kom, Gr.</p>
-                                            <p class="text-[11px] text-slate-600">NIP. 199508182025211033</p>
-                                        </div>
-                                    </div>
-                                    <div class="text-center space-y-16">
-                                        <p>Kota Pasuruan, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br>Penanggung Jawab Persediaan</p>
+                                        <p>Mengetahui,<br>Penanggung Jawab Persediaan,</p>
                                         <div>
                                             <p class="font-bold underline">Machmud Chaudi, S.Sos.</p>
                                             <p class="text-[11px] text-slate-600">NIP. 199407122025211054</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-center space-y-16">
+                                        <p>Kota Pasuruan, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br>Waka Sarana & Prasarana,</p>
+                                        <div>
+                                            <p class="font-bold underline">Muhammad Nur Kholis, S.Kom, Gr.</p>
+                                            <p class="text-[11px] text-slate-600">NIP. 199508182025211033</p>
                                         </div>
                                     </div>
                                 </div>
@@ -3173,7 +3184,7 @@
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm no-print shrink-0 overflow-hidden">
                         <div class="p-3 sm:p-4 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                             <span class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-file-lines text-orange-500"></i> Laporan Perizinan Siswa
+                                <i class="fa-solid fa-file-lines text-orange-500"></i> Modul Cetak Laporan Perizinan Siswa
                             </span>
                             <button onclick="window.print()" class="w-full sm:w-auto px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0">
                                 <i class="fa-solid fa-print"></i> Cetak / Unduh Laporan
