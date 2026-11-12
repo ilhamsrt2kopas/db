@@ -120,7 +120,7 @@
     <div id="signModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeSignModal()">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-signature text-orange-500"></i> Penandatanganan Dokumen
+                <i class="fa-solid fa-check text-orange-500"></i> Penandatanganan Dokumen
             </h3>
             <div id="signModalContent" class="space-y-3"></div>
             <div class="flex gap-2 pt-2">
@@ -132,22 +132,41 @@
 
     <!-- Modal Input Pengembalian / Penyelesaian Siswa -->
     <div id="returnInputModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closeReturnInputModal()">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation(); handleReturnModalClick(event)">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <i class="fa-solid fa-circle-check text-green-600"></i> Catatan Kembali ke Sekolah
             </h3>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tanggal Kembali (Wajib)</label>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tanggal Kembali</label>
                     <input type="date" id="returnDateInput" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Jam Kembali (Wajib)</label>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Jam Kembali</label>
                     <input type="time" id="returnTimeInput" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Pengantar (Wajib)</label>
-                    <input type="text" id="returnPengantarInput" required placeholder="Nama orang tua / pengantar..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Pengantar</label>
+                    <label class="flex items-center gap-2 mb-2 text-xs text-slate-700 cursor-pointer select-none">
+                        <input type="checkbox" id="pengantarSelfCheck" onchange="onPengantarSelfToggle()" class="w-4 h-4 text-orange-500 rounded">
+                        <span>Saya sendiri yang mengantar siswa</span>
+                    </label>
+                    <div id="pengantarPicker" class="relative">
+                        <button type="button" id="pengantarPickerBtn" onclick="togglePengantarDropdown()" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs flex items-center justify-between gap-2 text-left">
+                            <span id="pengantarPickerLabel" class="truncate text-slate-400">Pilih pengantar...</span>
+                            <i class="fa-solid fa-chevron-down text-slate-400 shrink-0"></i>
+                        </button>
+                        <div id="pengantarDropdown" class="hidden mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                            <div class="p-2 border-b border-slate-100">
+                                <input type="text" id="pengantarSearchInput" oninput="renderPengantarOptions()" placeholder="Cari nama / jabatan..." autocomplete="off" class="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs">
+                            </div>
+                            <div id="pengantarOptionList" class="max-h-48 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    <div id="pengantarManualBox" class="hidden mt-2 space-y-2">
+                        <input type="text" id="pengantarManualName" placeholder="Nama lengkap pengantar..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                        <input type="text" id="pengantarManualRelasi" placeholder="Hubungan dengan siswa (mis. Ayah, Ibu, Wali)..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Catatan (Opsional)</label>
@@ -454,7 +473,7 @@
                         waktuKeluar: i.waktu_keluar || '-',
                         waktuKembali: i.waktu_kembali || '-',
                         realisasi: i.realisasi || '-',
-                        returnDetails: normalizeReturnDetails(i.return_details ?? i.returnDetails),
+                        returnDetails: buildReturnDetails(i),
                         receiverInfo: normalizeReceiverInfo(i.receiver_info ?? i.receiverInfo),
                         status: i.status || 'Pending',
                         signatures: parseJsonField(i.signatures) || {}
@@ -599,7 +618,7 @@
 
         function getPerizinanTabs() {
             return [
-                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-signature' },
+                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-check' },
                 { id: 'aktif', label: 'Aktif', icon: 'fa-person-walking-arrow-right' },
                 { id: 'riwayat', label: 'Riwayat', icon: 'fa-clock-rotate-left' }
             ];
@@ -708,6 +727,13 @@
             `;
         }
 
+        // Pindah ke tab (dan sub tab perizinan bila diberikan) dari dasbor
+        function goToTab(tab, perizinanSub) {
+            if (perizinanSub) state.perizinanSubTab = perizinanSub;
+            state.activeTab = tab;
+            render();
+        }
+
         function switchTab(tab) {
             state.activeTab = tab;
             render();
@@ -723,9 +749,13 @@
 
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
-            const activePerizinan = state.perizinanSiswa
-                .filter(p => !isIzinSelesai(p))
+            const DASH_LIMIT = 2;
+            const allIzinBerjalan = state.perizinanSiswa.filter(p => !isIzinSelesai(p));
+            const isAllSigned = p => { const v = Object.values(p.signatures || {}); return v.length > 0 && v.every(x => x.status === 'Disetujui'); };
+            // Bagian 1: menunggu persetujuan (yang perlu ditandatangani pengguna ditampilkan lebih dulu); bagian 2: aktif
+            const waitingIzin = allIzinBerjalan.filter(p => !isAllSigned(p))
                 .sort((a, b) => (canUserSignNow(b) ? 1 : 0) - (canUserSignNow(a) ? 1 : 0));
+            const aktifIzin = allIzinBerjalan.filter(p => isAllSigned(p));
             const activeLoans = state.transaksi.filter(t => {
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
                 let isUnreturned = !(t.status || '').toLowerCase().includes('dikembalikan');
@@ -733,55 +763,105 @@
             });
             const todayAmbil = state.transaksi.filter(t => t.isToday && (t.jenis || '').toLowerCase().includes('ambil'));
 
+            // Tombol "Selengkapnya" hanya muncul jika ada baris yang tidak terlihat
+            const moreButton = (total, action) => {
+                const hidden = total - DASH_LIMIT;
+                return hidden > 0
+                    ? `<button onclick="${action}" class="mt-3 w-full py-2 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl transition">Selengkapnya (${hidden} lainnya) <i class="fa-solid fa-arrow-right ml-1"></i></button>`
+                    : '';
+            };
+
+            const izinRow = p => {
+                let sigs = p.signatures || {};
+                const allSigned = isAllSigned(p);
+                const canSign = canUserSignNow(p);
+                return `
+                    <div class="p-3 bg-slate-50 rounded-xl border ${canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100'} flex items-center justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${p.namaSiswa} <span class="text-xs text-orange-600 font-medium">(Kelas ${p.kelas}-${p.rombel || '-'})</span></p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${Object.entries(sigs).map(([role, sig]) => `
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            ${canSign ? `
+                                <button onclick="openSignModal('${p.idIzin}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-medium transition" title="Tanda Tangan">
+                                    <i class="fa-solid fa-check"></i> <span class="hidden sm:inline">Tanda Tangan</span>
+                                </button>
+                            ` : ''}
+                            <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px] font-medium transition" title="Cetak Surat">
+                                <i class="fa-solid fa-print"></i>
+                            </button>
+                            ${allSigned ? `
+                                <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-medium transition">
+                                    Kembali
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            };
+
+            const izinSection = (title, icon, color, list, emptyText, action) => `
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <i class="fa-solid ${icon} ${color}"></i> ${title}
+                        </h4>
+                        <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-bold">${list.length} Siswa</span>
+                    </div>
+                    ${list.length === 0 ? `<p class="text-xs text-slate-400 text-center py-4">${emptyText}</p>` : `
+                        <div class="space-y-3">${list.slice(0, DASH_LIMIT).map(izinRow).join('')}</div>
+                        ${moreButton(list.length, action)}
+                    `}
+                </div>
+            `;
+
+            const loanRow = t => {
+                let canManage = state.user.isAdmin || t.nip === state.user.nip;
+                return `
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                            <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
+                            <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
+                        </div>
+                        ${canManage ? `
+                            <button onclick="openReturnModal('${t.idTransaksi}', '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-medium transition shrink-0" title="Kembalikan">
+                                <i class="fa-solid fa-arrow-rotate-left"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            };
+
+            const ambilRow = t => `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
+                        <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-green-600">${t.jenis}</span></p>
+                        <p class="text-[10px] text-slate-500 mt-0.5 truncate"><span class="font-medium">${t.status}</span></p>
+                    </div>
+                </div>
+            `;
+
             main.innerHTML = `
                 <div class="h-full flex flex-col overflow-y-auto space-y-6 pr-1">
-                    <!-- Siswa yang sedang izin keluar -->
+                    <!-- Siswa yang sedang izin keluar: dua bagian dalam satu kotak -->
                     <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
                                 <i class="fa-solid fa-id-badge text-orange-500"></i> Siswa yang Sedang Izin Keluar
                             </h3>
-                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${activePerizinan.length} Siswa</span>
+                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${allIzinBerjalan.length} Siswa</span>
                         </div>
-                        <div class="overflow-y-auto max-h-60 pr-1">
-                            ${activePerizinan.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Tidak ada siswa yang sedang izin keluar.</p>' : `
-                                <div class="space-y-3">
-                                    ${activePerizinan.map(p => {
-                                        let sigs = p.signatures || {};
-                                        let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
-                                        const canSign = canUserSignNow(p);
-                                        return `
-                                            <div class="p-3 bg-slate-50 rounded-xl border ${canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100'} flex items-center justify-between gap-2">
-                                                <div class="min-w-0 flex-1">
-                                                    <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${p.namaSiswa} <span class="text-xs text-orange-600 font-medium">(Kelas ${p.kelas}-${p.rombel || '-'})</span></p>
-                                                    <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
-                                                    <div class="flex flex-wrap gap-1 mt-1">
-                                                        <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">${getIzinStatusLabel(p)}</span>
-                                                        ${Object.entries(sigs).map(([role, sig]) => `
-                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
-                                                        `).join('')}
-                                                    </div>
-                                                </div>
-                                                <div class="flex gap-1.5 shrink-0">
-                                                    ${canSign ? `
-                                                        <button onclick="openSignModal('${p.idIzin}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-medium transition" title="Tanda Tangan">
-                                                            <i class="fa-solid fa-signature"></i> <span class="hidden sm:inline">Tanda Tangan</span>
-                                                        </button>
-                                                    ` : ''}
-                                                    <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px] font-medium transition" title="Cetak Surat">
-                                                        <i class="fa-solid fa-print"></i>
-                                                    </button>
-                                                    ${allSigned ? `
-                                                        <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-medium transition">
-                                                            Kembali
-                                                        </button>
-                                                    ` : ''}
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            `}
+                        <div class="space-y-5">
+                            ${izinSection('Menunggu Persetujuan', 'fa-hourglass-half', 'text-amber-500', waitingIzin, 'Tidak ada izin yang menunggu persetujuan.', "goToTab('perizinan', 'persetujuan')")}
+                            <div class="border-t border-slate-100"></div>
+                            ${izinSection('Aktif', 'fa-person-walking-arrow-right', 'text-green-600', aktifIzin, 'Tidak ada siswa yang sedang izin keluar.', "goToTab('perizinan', 'aktif')")}
                         </div>
                     </div>
 
@@ -794,32 +874,10 @@
                                 </h3>
                                 <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${activeLoans.length} Aktivitas</span>
                             </div>
-                            <div class="overflow-y-auto max-h-60 pr-1">
-                                ${activeLoans.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Tidak ada barang yang sedang dipinjam.</p>' : `
-                                    <div class="space-y-3">
-                                        ${activeLoans.map(t => {
-                                            let canManage = state.user.isAdmin || t.nip === state.user.nip;
-                                            return `
-                                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                                                    <div class="min-w-0 flex-1">
-                                                        <div class="flex items-center gap-1.5 flex-wrap">
-                                                            
-                                                            <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
-                                                        </div>
-                                                        <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-orange-600">${t.jenis}</span></p>
-                                                        <p class="text-[10px] text-slate-500 mt-0.5 truncate">Status: <span class="font-medium">${t.status}</span></p>
-                                                    </div>
-                                                    ${canManage ? `
-                                                        <button onclick="openReturnModal('${t.idTransaksi}', '${t.namaBarang}', ${t.jumlah})" class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[11px] font-medium transition shrink-0" title="Kembalikan Barang">
-                                                            <i class="fa-solid fa-arrow-rotate-left"></i>
-                                                        </button>
-                                                    ` : ''}
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                `}
-                            </div>
+                            ${activeLoans.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Tidak ada barang yang sedang dipinjam.</p>' : `
+                                <div class="space-y-3">${activeLoans.slice(0, DASH_LIMIT).map(loanRow).join('')}</div>
+                                ${moreButton(activeLoans.length, "goToTab('pengembalian')")}
+                            `}
                         </div>
 
                         <!-- Pengambilan barang hari ini -->
@@ -830,24 +888,10 @@
                                 </h3>
                                 <span class="bg-green-50 text-green-600 px-2.5 py-1 rounded-full text-xs font-bold">${todayAmbil.length} Aktivitas</span>
                             </div>
-                            <div class="overflow-y-auto max-h-60 pr-1">
-                                ${todayAmbil.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada pengambilan hari ini.</p>' : `
-                                    <div class="space-y-3">
-                                        ${todayAmbil.map(t => `
-                                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                                      
-                                                        <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${t.namaBarang} <span class="text-xs font-normal text-slate-500">(x${t.jumlah})</span></p>
-                                                    </div>
-                                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">${t.namaPengguna} • <span class="font-medium text-green-600">${t.jenis}</span></p>
-                                                    <p class="text-[10px] text-slate-500 mt-0.5 truncate"><span class="font-medium">${t.status}</span></p>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                `}
-                            </div>
+                            ${todayAmbil.length === 0 ? '<p class="text-sm text-slate-400 text-center py-6">Belum ada pengambilan hari ini.</p>' : `
+                                <div class="space-y-3">${todayAmbil.slice(0, DASH_LIMIT).map(ambilRow).join('')}</div>
+                                ${moreButton(todayAmbil.length, "goToTab('riwayat')")}
+                            `}
                         </div>
                     </div>
 
@@ -915,7 +959,7 @@
             const main = document.getElementById('mainContent');
             const userTugas = tugasSource(state.user).toLowerCase();
 
-            const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'Tenaga Kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh', 'wali asrama'];
+            const allPossibleRoles = ['wali kelas', 'waka kesiswaan', 'waka keasramaan', 'petugas kesehatan', 'kesehatan', 'nakes', 'kepala uksr', 'uks', 'wali asuh', 'wali asrama'];
             const isSigner = state.user.isAdmin || allPossibleRoles.some(role => userTugas.includes(role));
 
             let perizinanTabs = getPerizinanTabs();
@@ -1016,7 +1060,7 @@
                                                     ${canUserSignNow(p) ? `
                                                         <button onclick="openSignModal('${p.idIzin}')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium" title="Tanda Tangan"><i class="fa-solid fa-check"></i></button>
                                                     ` : ''}
-                                                    <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-medium" title="Cetak Surat"><i class="fa-solid fa-print"></i></button>
+                                                    <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-medium" title="Lihat Surat"><i class="fa-solid fa-eye"></i></button>
                                                     ${allSigned && (!p.realisasi || p.realisasi === '-') ? `
                                                         <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Kembali</button>
                                                     ` : ''}
@@ -1063,7 +1107,7 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Keterangan Izin Keluar (Wajib Diisi)</label>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Keterangan Izin Keluar</label>
                                 <textarea id="izinKeteranganInput" rows="2" required placeholder="Tuliskan keterangan detail alasan izin..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500"></textarea>
                             </div>
 
@@ -1245,7 +1289,7 @@
                     if (state.izinKeperluan === 'meninggalkan sekolah') roles = ['Waka Kesiswaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
                     else if (state.izinKeperluan === 'pemeriksaan kesehatan') roles = ['Kepala UKSR', 'Tenaga Kesehatan'];
                     else if (state.izinKeperluan === 'meninggalkan asrama') roles = ['Waka Keasramaan', getWaliAsuhRole(k)];
-                    else if (state.izinKeperluan === 'kepulangan panjang') roles = ['Waka Kesiswaan', 'Waka Keasramaan', ];
+                    else if (state.izinKeperluan === 'kepulangan panjang') roles = ['Waka Kesiswaan', 'Waka Keasramaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
                     else roles = [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
 
                     rolesText.innerHTML = `Peran penandatangan: <b>${roles.join(', ')}</b>`;
@@ -1288,7 +1332,7 @@
             const keterangan = document.getElementById('izinKeteranganInput').value.trim();
 
             if (!waktuKeluar || !waktuKembali) {
-                showToast("Waktu keluar dan estimasi waktu kembali wajib diisi!", true);
+                showToast("Waktu keluar dan estimasi waktu kembali harus diisi!", true);
                 return;
             }
             if (waktuKembali < waktuKeluar) {
@@ -1296,7 +1340,7 @@
                 return;
             }
             if (!keterangan) {
-                showToast("Keterangan izin keluar wajib diisi!", true);
+                showToast("Keterangan izin keluar harus diisi!", true);
                 return;
             }
             if (state.izinSelectedSiswa.length === 0) {
@@ -1410,8 +1454,22 @@
             if (!o) return null;
             return {
                 pengantar: String(o.pengantar || o.nama_pengantar || o.pengantar_nama || '').trim(),
-                catatan: String(o.catatan || o.keterangan || o.note || '').trim()
+                catatan: String(o.catatan || o.keterangan || o.note || '').trim(),
+                pengantar_tipe: String(o.pengantar_tipe || '').trim(),
+                pengantar_jabatan: String(o.pengantar_jabatan || '').trim(),
+                pengantar_nip: String(o.pengantar_nip || '').trim(),
+                pengantar_hubungan: String(o.pengantar_hubungan || '').trim()
             };
+        }
+
+        // Gabungkan kolom pengantar & catatan (tabel perizinan_siswa) dengan metadata di return_details
+        function buildReturnDetails(row) {
+            const rd = normalizeReturnDetails(row.return_details ?? row.returnDetails);
+            const pengantarCol = String(row.pengantar ?? '').trim();
+            const catatanCol = String(row.catatan ?? '').trim();
+            if (!rd && !pengantarCol && !catatanCol) return null;
+            const base = rd || { pengantar: '', catatan: '', pengantar_tipe: '', pengantar_jabatan: '', pengantar_nip: '', pengantar_hubungan: '' };
+            return { ...base, pengantar: pengantarCol || base.pengantar, catatan: catatanCol || base.catatan };
         }
 
         function normalizeReceiverInfo(v) {
@@ -1459,8 +1517,8 @@
                 if (m[2]) return m[2] === String(tRombel).toLowerCase();
                 return true;
             }
-            if (r.includes('Tenaga Kesehatan') || r.includes('kesehatan') || r.includes('nakes')) {
-                return s.includes('Tenaga Kesehatan') || s.includes('kesehatan') || s.includes('nakes');
+            if (r.includes('petugas kesehatan') || r.includes('kesehatan') || r.includes('nakes')) {
+                return s.includes('petugas kesehatan') || s.includes('kesehatan') || s.includes('nakes');
             }
             if (r.includes('kepala uksr') || r.includes('uks')) {
                 return s.includes('kepala uksr') || s.includes('uksr') || s.includes('uks');
@@ -1492,6 +1550,26 @@
 
         function userMatchesRole(user, roleName, kelas, rombel) {
             return !!findRoleSegment(user, roleName, kelas, rombel);
+        }
+
+        // Urutan penandatangan pada surat izin (kiri -> kanan) per jenis izin.
+        // Diurutkan secara eksplisit karena urutan kunci JSON dari database tidak terjamin.
+        const SIGNER_ORDER = {
+            'meninggalkan sekolah': ['waka kesiswaan', 'wali kelas'],
+            'meninggalkan asrama': ['waka keasramaan', 'wali asuh|wali asrama'],
+            'pemeriksaan kesehatan': ['kepala uks', 'kesehatan'],
+            'kepulangan panjang': ['waka kesiswaan', 'waka keasramaan', 'wali kelas']
+        };
+
+        function orderSignerRoles(izin) {
+            const keys = Object.keys(izin.signatures || {});
+            const patterns = SIGNER_ORDER[String(izin.keperluan || '').toLowerCase()] || [];
+            const rank = key => {
+                const k = key.toLowerCase();
+                const i = patterns.findIndex(pt => pt.split('|').some(x => k.includes(x)));
+                return i === -1 ? 99 : i;
+            };
+            return keys.map((k, i) => ({ k, i, r: rank(k) })).sort((a, b) => a.r - b.r || a.i - b.i).map(x => x.k);
         }
 
         // Data penandatangan yang akan dicetak pada surat izin (nama, NIP, jabatan sebenarnya)
@@ -1752,14 +1830,143 @@
         }
 
         // --- RETURN / PENYELESAIAN SISWA DENGAN MODAL ---
+        // --- PILIHAN PENGANTAR (dropdown + pencarian) ---
+        let returnPengantar = { mode: 'none', nip: '', nama: '', jabatan: '' };
+        let pengantarCandidates = [];
+
+        function getPengantarCandidates(q) {
+            const query = String(q || '').trim().toLowerCase();
+            return (state.penggunaList || [])
+                .map(u => ({ nip: String(u.nip), nama: u.nama || '', jabatan: tugasSource(u) || 'Pegawai' }))
+                .filter(c => !query || c.nama.toLowerCase().includes(query) || c.jabatan.toLowerCase().includes(query))
+                .sort((x, y) => x.jabatan.localeCompare(y.jabatan, 'id', { numeric: true }) || x.nama.localeCompare(y.nama, 'id'));
+        }
+
+        function renderPengantarOptions() {
+            const box = document.getElementById('pengantarOptionList');
+            if (!box) return;
+            const q = document.getElementById('pengantarSearchInput').value;
+            pengantarCandidates = getPengantarCandidates(q);
+            const items = pengantarCandidates.map((c, i) => `
+                <button type="button" onclick="selectPengantar(${i})" class="w-full text-left px-3 py-2 text-xs hover:bg-orange-50 border-b border-slate-50 ${returnPengantar.mode === 'pegawai' && returnPengantar.nip === c.nip ? 'bg-orange-50 font-semibold' : ''}">
+                    ${escapeAttr(c.jabatan)} - ${escapeAttr(c.nama)}
+                </button>
+            `).join('');
+            const empty = pengantarCandidates.length === 0 ? '<p class="px-3 py-3 text-xs text-slate-400 text-center">Tidak ada pegawai yang cocok.</p>' : '';
+            box.innerHTML = items + empty + `
+                <button type="button" onclick="selectPengantarLainnya()" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 bg-slate-50 sticky bottom-0 ${returnPengantar.mode === 'lainnya' ? 'bg-orange-50' : ''}">
+                    <i class="fa-solid fa-user-plus mr-1"></i> Lainnya (pengantar tidak ada dalam daftar)
+                </button>
+            `;
+        }
+
+        function updatePengantarLabel() {
+            const label = document.getElementById('pengantarPickerLabel');
+            const picker = document.getElementById('pengantarPicker');
+            const manual = document.getElementById('pengantarManualBox');
+            const m = returnPengantar.mode;
+            let text = 'Pilih pengantar...', filled = false;
+            if (m === 'saya') { text = `${returnPengantar.jabatan} - ${returnPengantar.nama} (Anda)`; filled = true; }
+            else if (m === 'pegawai') { text = `${returnPengantar.jabatan} - ${returnPengantar.nama}`; filled = true; }
+            else if (m === 'lainnya') { text = 'Lainnya (ketik manual)'; filled = true; }
+            if (label) {
+                label.innerText = text;
+                label.className = 'truncate ' + (filled ? 'text-slate-800' : 'text-slate-400');
+            }
+            if (picker) {
+                if (m === 'saya') picker.classList.add('opacity-50', 'pointer-events-none');
+                else picker.classList.remove('opacity-50', 'pointer-events-none');
+            }
+            if (manual) {
+                if (m === 'lainnya') manual.classList.remove('hidden');
+                else manual.classList.add('hidden');
+            }
+        }
+
+        function closePengantarDropdown() {
+            const dd = document.getElementById('pengantarDropdown');
+            if (dd) dd.classList.add('hidden');
+        }
+
+        function togglePengantarDropdown() {
+            const dd = document.getElementById('pengantarDropdown');
+            if (!dd) return;
+            const willOpen = dd.classList.contains('hidden');
+            if (willOpen) {
+                dd.classList.remove('hidden');
+                const search = document.getElementById('pengantarSearchInput');
+                search.value = '';
+                renderPengantarOptions();
+                if (search.focus) search.focus();
+            } else {
+                dd.classList.add('hidden');
+            }
+        }
+
+        function selectPengantar(i) {
+            const c = pengantarCandidates[i];
+            if (!c) return;
+            returnPengantar = { mode: 'pegawai', nip: c.nip, nama: c.nama, jabatan: c.jabatan };
+            closePengantarDropdown();
+            updatePengantarLabel();
+        }
+
+        function selectPengantarLainnya() {
+            returnPengantar = { mode: 'lainnya', nip: '', nama: '', jabatan: '' };
+            closePengantarDropdown();
+            updatePengantarLabel();
+            const nm = document.getElementById('pengantarManualName');
+            if (nm && nm.focus) nm.focus();
+        }
+
+        function onPengantarSelfToggle() {
+            const checked = document.getElementById('pengantarSelfCheck').checked;
+            closePengantarDropdown();
+            if (checked) {
+                returnPengantar = { mode: 'saya', nip: String(state.user.nip), nama: state.user.nama, jabatan: tugasSource(state.user) || 'Pegawai' };
+            } else {
+                returnPengantar = { mode: 'none', nip: '', nama: '', jabatan: '' };
+            }
+            updatePengantarLabel();
+        }
+
+        // Klik di luar pilihan pengantar menutup dropdown
+        function handleReturnModalClick(ev) {
+            const t = ev && ev.target;
+            if (t && t.closest && !t.closest('#pengantarPicker')) closePengantarDropdown();
+        }
+
+        // Menghasilkan data pengantar dari pilihan pengguna (atau pesan kesalahan)
+        function resolvePengantarSelection() {
+            const m = returnPengantar.mode;
+            if (m === 'saya' || m === 'pegawai') {
+                return { ok: true, data: { pengantar: returnPengantar.nama, pengantar_tipe: 'pegawai', pengantar_jabatan: returnPengantar.jabatan, pengantar_nip: returnPengantar.nip } };
+            }
+            if (m === 'lainnya') {
+                const nama = (document.getElementById('pengantarManualName').value || '').trim();
+                const hubungan = (document.getElementById('pengantarManualRelasi').value || '').trim();
+                if (!nama) return { ok: false, error: 'Nama pengantar harus diisi.' };
+                if (!hubungan) return { ok: false, error: 'Hubungan dengan siswa harus diisi.' };
+                return { ok: true, data: { pengantar: nama, pengantar_tipe: 'lainnya', pengantar_hubungan: hubungan } };
+            }
+            return { ok: false, error: 'Pengantar harus dipilih.' };
+        }
+
         function openReturnInputModalHandler(idIzin) {
             activeReturnIdIzin = idIzin;
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
             document.getElementById('returnDateInput').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
             document.getElementById('returnTimeInput').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-            document.getElementById('returnPengantarInput').value = '';
             document.getElementById('returnCatatanInput').value = '';
+            // reset pilihan pengantar
+            returnPengantar = { mode: 'none', nip: '', nama: '', jabatan: '' };
+            document.getElementById('pengantarSelfCheck').checked = false;
+            document.getElementById('pengantarSearchInput').value = '';
+            document.getElementById('pengantarManualName').value = '';
+            document.getElementById('pengantarManualRelasi').value = '';
+            closePengantarDropdown();
+            updatePengantarLabel();
 
             document.getElementById('returnInputModal').classList.remove('hidden');
             document.getElementById('returnInputModal').classList.add('flex');
@@ -1774,11 +1981,15 @@
         async function submitStudentReturn() {
             const dateVal = document.getElementById('returnDateInput').value;
             const timeVal = document.getElementById('returnTimeInput').value;
-            const pengantar = document.getElementById('returnPengantarInput').value.trim();
             const catatan = document.getElementById('returnCatatanInput').value.trim();
 
-            if (!dateVal || !timeVal || !pengantar) {
-                showToast("Tanggal, jam, dan pengantar wajib diisi!", true);
+            if (!dateVal || !timeVal) {
+                showToast("Tanggal dan jam kembali harus diisi!", true);
+                return;
+            }
+            const pengantarRes = resolvePengantarSelection();
+            if (!pengantarRes.ok) {
+                showToast(pengantarRes.error, true);
                 return;
             }
 
@@ -1789,7 +2000,7 @@
                 showLoading("Memproses waktu kembali...");
                 try {
                     const realisasiStr = `${dateVal} ${timeVal}`;
-                    const returnDetails = { pengantar, catatan };
+                    const returnDetails = { ...pengantarRes.data, catatan };
                     const receiverInfo = {
                         nama: state.user.nama,
                         nip: state.user.nip,
@@ -1798,6 +2009,8 @@
 
                     const { error } = await supabaseClient.from('perizinan_siswa').update({ 
                         realisasi: realisasiStr, 
+                        pengantar: pengantarRes.data.pengantar,
+                        catatan: catatan || null,
                         return_details: returnDetails,
                         receiver_info: receiverInfo,
                         status: 'Selesai' 
@@ -1840,14 +2053,15 @@
                 return;
             }
 
-            const sigKeys = Object.keys(izin.signatures || {});
+            const sigKeys = orderSignerRoles(izin);
             const totalSigs = sigKeys.length;
             const nowFormatted = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 
             let sigBoxesHtml = '';
 
             if (totalSigs <= 2) {
-                let leftSignerRole = sigKeys[0] || sigKeys[1] || 'Mengetahui';
+                // Kiri -> kanan sesuai urutan jenis izin (kiri: "Mengetahui", kanan: tempat & tanggal)
+                let leftSignerRole = sigKeys[0] || 'Mengetahui';
                 let rightSignerRole = sigKeys[1] || 'Petugas';
                 let leftSigData = resolveSigner(izin, leftSignerRole);
                 let rightSigData = resolveSigner(izin, rightSignerRole);
@@ -1888,7 +2102,7 @@
 
                             let topText = '&nbsp;';
                             if (idx === 0) topText = 'Mengetahui,';
-                            if (idx === 1) topText = 'Pasuruan, ' + nowFormatted;
+                            if (idx === sigKeys.length - 1) topText = 'Pasuruan, ' + nowFormatted;
 
                             return `
                                 <div class="flex flex-col items-center justify-between">
@@ -1908,10 +2122,12 @@
             const receiverInfo = resolveReceiver(izin);
             const isReturned = izin.realisasi && izin.realisasi !== '-';
 
+            const pengantarKet = returnDetails.pengantar_tipe === 'lainnya' ? (returnDetails.pengantar_hubungan || '') : (returnDetails.pengantar_jabatan || '');
+            const pengantarTeks = returnDetails.pengantar ? returnDetails.pengantar + (pengantarKet ? ` (${pengantarKet})` : '') : '........................................................';
             let returnPengantarQr = (isReturned && returnDetails.pengantar) ?
                 `<div class="h-16 flex flex-col items-center justify-center gap-1 text-green-700">
                     <i class="fa-solid fa-circle-check text-2xl"></i>
-                    <span class="text-[10px] font-semibold">Terverifikasi oleh sistem</span>
+                    <span class="text-[10px] font-semibold">${returnDetails.pengantar_tipe === 'lainnya' ? 'Dicatat oleh sistem' : 'Terverifikasi oleh sistem'}</span>
                 </div>` :
                 `<div class="h-16 flex items-center justify-center text-slate-300 text-xs">-</div>`;
 
@@ -1975,7 +2191,7 @@
                         </p>
                         <table class="w-full pl-4 space-y-1">
                             <tr><td class="w-36 font-semibold text-slate-600">Waktu Kembali</td><td>: ${isReturned ? formatIndonesianDateTime(izin.realisasi) + ' WIB' : '........................................................'}</td></tr>
-                            <tr><td class="font-semibold text-slate-600">Pengantar</td><td>: ${returnDetails.pengantar || '........................................................'}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Pengantar</td><td>: ${pengantarTeks}</td></tr>
                             <tr><td class="font-semibold text-slate-600">Catatan</td><td>: ${returnDetails.catatan || '-'}</td></tr>
                         </table>
                     </div>
@@ -1985,6 +2201,7 @@
                             <p class="font-semibold text-slate-700 mb-2">Pengantar</p>
                             <div class="my-1">${returnPengantarQr}</div>
                             <p class="font-bold underline text-slate-900 mt-2">${returnDetails.pengantar || '( ........................ )'}</p>
+                            ${pengantarKet ? `<p class="text-[11px] text-slate-600">${pengantarKet}</p>` : ''}
                         </div>
                         <div class="w-48 flex flex-col items-center">
                             <p class="font-semibold text-slate-700 mb-2">${receiverInfo.tugas || 'Pegawai yang Menerima'}</p>
@@ -2967,7 +3184,7 @@
                         const inputEl = document.getElementById(`modalTujuan_${id}`);
                         tujuanVal = inputEl ? inputEl.value.trim() : '';
                         if (!tujuanVal) {
-                            showToast("Tujuan penggunaan untuk setiap barang wajib diisi!", true);
+                            showToast("Tujuan penggunaan untuk setiap barang harus diisi!", true);
                             if (inputEl) inputEl.focus();
                             return;
                         }
