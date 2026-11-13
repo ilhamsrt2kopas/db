@@ -118,7 +118,7 @@
 
     <!-- Modal Penandatanganan Dokumen -->
     <div id="signModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeSignModal()">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <i class="fa-solid fa-check text-orange-500"></i> Penandatanganan Dokumen
             </h3>
@@ -1619,6 +1619,41 @@
             return Object.keys(izin.signatures || {}).some(role => userMatchesRole(user, role, kelas, rombel));
         }
 
+        // Ringkasan isi surat pemberian izin, ditampilkan agar bisa ditinjau sebelum menandatangani
+        function renderSignReviewHTML(izin) {
+            const pemohon = findPenggunaByNip(izin.nip);
+            const roles = orderSignerRoles(izin);
+            const chips = roles.map(role => {
+                const sg = resolveSigner(izin, role);
+                const signed = (izin.signatures[role] || {}).status === 'Disetujui';
+                return signed
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700"><i class="fa-solid fa-check"></i> ${escapeAttr(sg.jabatan)} - ${escapeAttr(sg.nama)}</span>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700"><i class="fa-regular fa-clock"></i> ${escapeAttr(role)} (menunggu)</span>`;
+            }).join('');
+            return `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-lines text-orange-500"></i> Detail Surat Pemberian Izin ${escapeAttr(izin.keperluan)}
+                    </p>
+                    <table class="w-full text-xs">
+                        <tbody>
+                            <tr><td class="w-32 py-0.5 align-top font-semibold text-slate-500">Nama Siswa</td><td class="py-0.5">: <b>${escapeAttr(izin.namaSiswa)}</b> (${escapeAttr(izin.nisn)})</td></tr>
+                            <tr><td class="py-0.5 align-top font-semibold text-slate-500">Jenjang / Kelas</td><td class="py-0.5">: ${getJenjang(izin.kelas)} / Kelas ${escapeAttr(izin.kelas)}-${escapeAttr(izin.rombel || '-')}</td></tr>
+                            <tr><td class="py-0.5 align-top font-semibold text-slate-500">Kamar</td><td class="py-0.5">: ${escapeAttr(izin.kamar || '-')}</td></tr>
+                            <tr><td class="py-0.5 align-top font-semibold text-slate-500">Keterangan</td><td class="py-0.5">: ${escapeAttr(izin.keterangan || '-')}</td></tr>
+                            <tr><td class="py-0.5 align-top font-semibold text-slate-500">Rencana Berangkat</td><td class="py-0.5">: ${formatIndonesianDateTime(izin.waktuKeluar)} WIB</td></tr>
+                            <tr><td class="py-0.5 align-top font-semibold text-slate-500">Rencana Kembali</td><td class="py-0.5">: ${formatIndonesianDateTime(izin.waktuKembali)} WIB</td></tr>
+                            ${pemohon ? `<tr><td class="py-0.5 align-top font-semibold text-slate-500">Diajukan oleh</td><td class="py-0.5">: ${escapeAttr(pemohon.nama)} (${escapeAttr(tugasSource(pemohon) || 'Pegawai')})</td></tr>` : ''}
+                        </tbody>
+                    </table>
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500 mb-1">Status Tanda Tangan</p>
+                        <div class="flex flex-wrap gap-1">${chips}</div>
+                    </div>
+                </div>
+            `;
+        }
+
         // Apakah tombol tanda tangan perlu ditampilkan untuk pengguna saat ini
         function canUserSignNow(izin) {
             const sigs = izin.signatures || {};
@@ -1718,7 +1753,7 @@
                 `;
             }
 
-            document.getElementById('signModalContent').innerHTML = html;
+            document.getElementById('signModalContent').innerHTML = renderSignReviewHTML(izin) + html;
             document.getElementById('signModal').classList.remove('hidden');
             document.getElementById('signModal').classList.add('flex');
         }
