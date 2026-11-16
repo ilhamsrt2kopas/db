@@ -1126,7 +1126,7 @@
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Estimasi Waktu Kembali</label>
                                 <input type="datetime-local" id="waktuKembaliInput" onchange="handleWaktuKembaliChange(this.value)" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-                                <p class="text-[10px] text-slate-400 mt-1">Catatan: Tanggal & jam kembali tidak boleh kurang dari tanggal & waktu keberangkatan. Jika estimasi > 24 jam, jenis izin terkunci menjadi <b>Kepulangan Panjang</b>.</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Catatan: Tanggal & jam kembali tidak boleh kurang dari tanggal & waktu keberangkatan. Jika estimasi > 24 jam, jenis izin terkunci menjadi <b>Meninggalkan Sekolah dan Asrama</b>.</p>
                             </div>
 
                             <div>
@@ -1135,7 +1135,7 @@
                                     <option value="meninggalkan sekolah" ${state.izinKeperluan === 'meninggalkan sekolah' ? 'selected' : ''}>Meninggalkan Sekolah</option>
                                     <option value="meninggalkan asrama" ${state.izinKeperluan === 'meninggalkan asrama' ? 'selected' : ''}>Meninggalkan Asrama</option>
                                     <option value="pemeriksaan kesehatan" ${state.izinKeperluan === 'pemeriksaan kesehatan' ? 'selected' : ''}>Pemeriksaan Kesehatan</option>
-                                    <option value="kepulangan panjang" ${state.izinKeperluan === 'kepulangan panjang' ? 'selected' : ''}>Kepulangan Panjang</option>
+                                    <option value="kepulangan panjang" ${state.izinKeperluan === 'kepulangan panjang' ? 'selected' : ''}>Meninggalkan Sekolah dan Asrama</option>
                                 </select>
                                 <p id="rolesInfoText" class="text-[11px] text-orange-600 mt-1">Peran penandatangan akan disesuaikan dengan kelas siswa yang dipilih.</p>
                             </div>
@@ -1226,7 +1226,7 @@
         }
 
         const KEPERLUAN_LABEL = {
-            'kepulangan panjang': 'Kepulangan Panjang',
+            'kepulangan panjang': 'Meninggalkan Sekolah dan Asrama',
             'pemeriksaan kesehatan': 'Pemeriksaan Kesehatan',
             'meninggalkan asrama': 'Meninggalkan Asrama',
             'meninggalkan sekolah': 'Meninggalkan Sekolah'
@@ -1331,7 +1331,7 @@
                 if (diffHours > 24) {
                     state.izinKeperluan = 'kepulangan panjang';
                     state.isLockedKeperluan = true;
-                    showToast("Estimasi > 24 jam: Jenis izin terkunci menjadi Kepulangan Panjang.");
+                    showToast("Estimasi > 24 jam: Jenis izin terkunci menjadi Meninggalkan Sekolah dan Asrama.");
                 } else {
                     state.isLockedKeperluan = false;
                 }
@@ -1460,6 +1460,11 @@
         }
 
         // Peran penandatangan sesuai jenis izin & kelas siswa (urutan = urutan tampil di surat)
+        // Nama jenis izin untuk tampilan (nilai di database tetap, mis. 'kepulangan panjang')
+        function keperluanLabel(v) {
+            return KEPERLUAN_LABEL[String(v || '').toLowerCase()] || String(v || '');
+        }
+
         function getSignerRoles(keperluan, siswaObj) {
             const kRStr = siswaObj && siswaObj.kelas && siswaObj.rombel ? `${siswaObj.kelas}-${siswaObj.rombel}` : (siswaObj && siswaObj.kelas ? siswaObj.kelas : '');
             const wali = kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas';
@@ -1839,7 +1844,7 @@
             return `
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
                     <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-lines text-orange-500"></i> Detail Surat Pemberian Izin ${escapeAttr(izin.keperluan)}
+                        <i class="fa-solid fa-file-lines text-orange-500"></i> Detail Surat Pemberian Izin ${escapeAttr(keperluanLabel(izin.keperluan).toLowerCase())}
                     </p>
                     <table class="w-full text-xs">
                         <tbody>
@@ -2406,10 +2411,44 @@
             const sigKeys = orderSignerRoles(izin);
             const totalSigs = sigKeys.length;
             const rej = getRejectionInfo(izin);
+            // Ringkasan isi QR: data inti surat + status tanda tangan
+            const qrSigners = orderSignerRoles(izin).map(role => {
+                const sg = resolveSigner(izin, role);
+                return (izin.signatures[role] || {}).status === 'Disetujui' ? `${sg.jabatan}: ${sg.nama}` : `${role}: menunggu`;
+            }).join('; ');
+            const qrText = [
+                'SURAT PEMBERIAN IZIN',
+                `ID: ${izin.idIzin}`,
+                `Siswa: ${izin.namaSiswa} (${izin.nisn})`,
+                `Kelas: ${izin.kelas}-${izin.rombel || '-'}`,
+                `Jenis: ${keperluanLabel(izin.keperluan)}`,
+                `Keluar: ${izin.waktuKeluar}`,
+                `Kembali: ${izin.waktuKembali}`,
+                `Status: ${getIzinStatusLabel(izin)}`,
+                `Tanda tangan: ${qrSigners}`
+            ].join('\n');
+            const letterFooterHtml = !(izin.realisasi && izin.realisasi !== '-') ? `
+                <div class="signature-block-container border-t border-slate-300 pt-4 mt-6 flex items-start justify-between gap-4 text-[11px] sm:text-xs">
+                    <div class="flex-1 min-w-0">
+                        ${rej ? '' : `
+                        <p class="font-bold text-slate-800 mb-1">Ketentuan Izin</p>
+                        <ol class="list-decimal pl-4 space-y-0.5 text-slate-600 leading-snug">
+                            <li>Surat ditunjukkan ke petugas gerbang saat keluar dan kembali.</li>
+                            <li>Siswa melapor ke wali asuh/wali asrama setelah tiba.</li>
+                            <li>Wali Asuh/Asrama melakukan pencatatan pada Aplikasi.</li>
+                            <li>Jika terdapat perubahan rencana kembali, pengantar/orang tua menghubungi sekolah.</li>
+                        </ol>`}
+                    </div>
+                    <div class="w-28 shrink-0 flex flex-col items-center text-center">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=${encodeURIComponent(qrText)}" alt="QR ringkasan surat" class="w-24 h-24">
+                        <p class="mt-1 font-mono text-[10px] font-bold text-slate-700">${escapeAttr(izin.idIzin)}</p>
+                        <p class="text-[9px] text-slate-400 leading-tight">Pindai untuk melihat ringkasan data surat</p>
+                    </div>
+                </div>` : '';
             const rejectBannerHtml = rej ? `
                 <div class="border border-red-300 bg-red-50 text-red-700 rounded-lg p-3 text-xs">
-                    <b>PENGAJUAN DITOLAK</b> ${rej.tanggal ? ' pada ' + escapeAttr(formatIndonesianDateTime(rej.tanggal)) + ' WIB' : ''}.
-                    ${rej.alasan ? '<br>Alasan: ' + escapeAttr(rej.alasan) : ''}
+                    <b>PENGAJUAN DITOLAK</b>
+                    ${rej.alasan ? '<br>' + escapeAttr(rej.alasan) : ''}
                 </div>` : '';
             const nowFormatted = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -2513,7 +2552,7 @@
                 <!-- BAGIAN 1: SURAT IZIN -->
                 <div class="space-y-3">
                     <div class="text-center space-y-1 py-1">
-                        <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT PEMBERIAN IZIN ${izin.keperluan}</h3>
+                        <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT PEMBERIAN IZIN ${keperluanLabel(izin.keperluan)}</h3>
                     </div>
 
                     <div class="space-y-2 text-xs sm:text-sm">
@@ -2527,13 +2566,15 @@
                             <tr><td class="font-semibold text-slate-600">Rencana Kembali</td><td>: ${formatIndonesianDateTime(izin.waktuKembali)} WIB</td></tr>
                         </table>
 
-                        <p class="text-xs sm:text-sm pt-2">Demikian surat pemberian izin <b>${izin.keperluan}</b> ini untuk digunakan sebagaimana mestinya.</p>
+                        <p class="text-xs sm:text-sm pt-2">Demikian surat pemberian izin <b>${keperluanLabel(izin.keperluan).toLowerCase()}</b> ini untuk digunakan sebagaimana mestinya.</p>
                     </div>
 
                     ${rejectBannerHtml}
                     ${sigBoxesHtml}
+                    ${letterFooterHtml}
                 </div>
 
+                ${isReturned ? `
                 <div class="border-t-2 border-dashed border-slate-300 my-6 page-break"></div>
 
                 <!-- BAGIAN 2: SURAT KETERANGAN KEMBALI KE SEKOLAH -->
@@ -2568,6 +2609,7 @@
                         </div>
                     </div>
                 </div>
+                ` : ''}
             `;
 
             document.getElementById('printLetterModal').classList.remove('hidden');
