@@ -130,6 +130,20 @@
         </div>
     </div>
 
+    <!-- Modal Penolakan Pengajuan -->
+    <div id="rejectModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeRejectModal()">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-xmark text-red-600"></i> Tolak Pengajuan Izin
+            </h3>
+            <div id="rejectModalContent" class="space-y-3"></div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeRejectModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold">Batal</button>
+                <button onclick="triggerRejectConfirmation()" class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold">Tolak Pengajuan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Input Pengembalian / Penyelesaian Siswa -->
     <div id="returnInputModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closeReturnInputModal()">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation(); handleReturnModalClick(event)">
@@ -274,6 +288,7 @@
             isLockedKeperluan: false,
             izinSelectedSiswa: [],
             izinSearchSiswa: '',
+            izinEditId: null,
             // Filter laporan perizinan
             reportIzinJenis: 'semua',
             reportIzinStatus: 'semua',
@@ -754,7 +769,7 @@
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const DASH_LIMIT = 2;
-            const allIzinBerjalan = state.perizinanSiswa.filter(p => !isIzinSelesai(p));
+            const allIzinBerjalan = state.perizinanSiswa.filter(p => !isIzinClosed(p));
             const isAllSigned = p => { const v = Object.values(p.signatures || {}); return v.length > 0 && v.every(x => x.status === 'Disetujui'); };
             // Bagian 1: menunggu persetujuan (yang perlu ditandatangani pengguna ditampilkan lebih dulu); bagian 2: aktif
             const waitingIzin = allIzinBerjalan.filter(p => !isAllSigned(p))
@@ -786,7 +801,7 @@
                             <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
                             <div class="flex flex-wrap gap-1 mt-1">
                                 ${Object.entries(sigs).map(([role, sig]) => `
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
                                 `).join('')}
                             </div>
                         </div>
@@ -794,6 +809,14 @@
                             ${canSign ? `
                                 <button onclick="openSignModal('${p.idIzin}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-medium transition" title="Tanda Tangan">
                                     <i class="fa-solid fa-check"></i> <span class="hidden sm:inline">Tanda Tangan</span>
+                                </button>
+                                <button onclick="openRejectModal('${p.idIzin}')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium transition" title="Tolak Pengajuan">
+                                    <i class="fa-solid fa-xmark"></i> <span class="hidden sm:inline">Tolak</span>
+                                </button>
+                            ` : ''}
+                            ${canUserEditIzin(p, state.user) ? `
+                                <button onclick="goToTab('perizinan', 'persetujuan'); openEditIzinModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-medium transition" title="Ubah Pengajuan">
+                                    <i class="fa-solid fa-pen"></i>
                                 </button>
                             ` : ''}
                             <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px] font-medium transition" title="Cetak Surat">
@@ -977,12 +1000,14 @@
                 let allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(s => s.status === 'Disetujui');
                 let isReturned = String(p.status || '').toLowerCase().includes('selesai') || String(p.status || '').toLowerCase().includes('kembali') || (p.realisasi && p.realisasi !== '-');
 
+                let isRejected = isIzinDitolak(p);
+
                 if (state.perizinanSubTab === 'persetujuan') {
-                    return !allSigned && !isReturned;
+                    return !allSigned && !isReturned && !isRejected;
                 } else if (state.perizinanSubTab === 'aktif') {
-                    return allSigned && !isReturned;
+                    return allSigned && !isReturned && !isRejected;
                 } else if (state.perizinanSubTab === 'riwayat') {
-                    return isReturned;
+                    return isReturned || isRejected;
                 }
                 return true;
             });
@@ -1038,6 +1063,7 @@
 
                                         let displayStatus = allSigned ? 'Aktif' : 'Pending';
                                         if (p.realisasi && p.realisasi !== '-') displayStatus = 'Selesai';
+                                        if (isIzinDitolak(p)) displayStatus = 'Ditolak';
 
                                         let canDelete = state.user.isAdmin || (p.nip && p.nip === state.user.nip);
 
@@ -1049,13 +1075,13 @@
                                                 </td>
                                                 <td class="p-3 text-xs text-slate-600">${formatIndonesianDateTime(p.waktuKeluar)}</td>
                                                 <td class="p-3 text-xs text-slate-600">${formatIndonesianDateTime(p.waktuKembali)}</td>
-                                                ${state.perizinanSubTab === 'riwayat' ? `<td class="p-3 text-xs text-green-600 font-bold">${formatIndonesianDateTime(p.realisasi)}</td>` : ''}
+                                                ${state.perizinanSubTab === 'riwayat' ? `<td class="p-3 text-xs text-green-600 font-bold">${isIzinDitolak(p) ? '<span class="text-slate-400 font-normal">-</span>' : formatIndonesianDateTime(p.realisasi)}</td>` : ''}
                                                 <td class="p-3">
                                                     <div class="space-y-1">
-                                                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">${displayStatus}</span>
+                                                        <span class="px-2 py-0.5 ${displayStatus === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'} rounded text-[10px] font-bold">${displayStatus}</span>${rejectInfoHTML(p)}
                                                         <div class="flex flex-wrap gap-1 mt-1">
                                                             ${Object.entries(sigs).map(([role, sig]) => `
-                                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
                                                             `).join('')}
                                                         </div>
                                                     </div>
@@ -1063,6 +1089,10 @@
                                                 <td class="p-3 text-center space-x-1 whitespace-nowrap">
                                                     ${canUserSignNow(p) ? `
                                                         <button onclick="openSignModal('${p.idIzin}')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium" title="Tanda Tangan"><i class="fa-solid fa-check"></i></button>
+                                                        <button onclick="openRejectModal('${p.idIzin}')" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium" title="Tolak Pengajuan"><i class="fa-solid fa-xmark"></i></button>
+                                                    ` : ''}
+                                                    ${canUserEditIzin(p, state.user) ? `
+                                                        <button onclick="openEditIzinModal('${p.idIzin}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-medium" title="Ubah Pengajuan"><i class="fa-solid fa-pen"></i></button>
                                                     ` : ''}
                                                     <button onclick="openPrintLetterModal('${p.idIzin}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-medium" title="Lihat Surat"><i class="fa-solid fa-eye"></i></button>
                                                     ${allSigned && (!p.realisasi || p.realisasi === '-') ? `
@@ -1085,7 +1115,7 @@
                 <div id="createIzinModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeCreateIzinModal()">
                     <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4" onclick="event.stopPropagation()">
                         <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-file-pen text-orange-500"></i> Formulir Perizinan Siswa
+                            <i class="fa-solid fa-file-pen text-orange-500"></i> <span id="createIzinTitle">Formulir Perizinan Siswa</span>
                         </h3>
                         <form onsubmit="submitPerizinan(event)" class="space-y-4">
                             <div>
@@ -1115,7 +1145,9 @@
                                 <textarea id="izinKeteranganInput" rows="2" required placeholder="Tuliskan keterangan detail alasan izin..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500"></textarea>
                             </div>
 
-                            <div>
+                            <div id="izinEditInfo" class="hidden p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600"></div>
+
+                            <div id="izinSiswaPickBlock">
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Pilih Siswa (Berdasarkan Jenjang)</label>
                                 <input type="text" oninput="handleSiswaSearchInput(this.value)" value="${state.izinSearchSiswa || ''}" placeholder="Cari nama atau NISN siswa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mb-2">
                                 <div id="siswaListContainer" class="max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-3 bg-slate-50">
@@ -1125,7 +1157,7 @@
 
                             <div class="flex gap-3 pt-2">
                                 <button type="button" onclick="closeCreateIzinModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition text-xs">Batal</button>
-                                <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow text-xs">Ajukan Perizinan</button>
+                                <button type="submit" id="createIzinSubmitBtn" class="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow text-xs">Ajukan Perizinan</button>
                             </div>
                         </form>
                     </div>
@@ -1140,7 +1172,39 @@
         }
 
         // Status tampilan: Pending (belum lengkap ditandatangani), Aktif (sedang izin), Selesai (sudah kembali)
+        // Penolakan: salah satu penandatangan menolak -> status izin "Ditolak"
+        function getRejectionInfo(p) {
+            const sigs = p.signatures || {};
+            const role = Object.keys(sigs).find(r => sigs[r] && sigs[r].status === 'Ditolak');
+            if (!role) return null;
+            const sg = sigs[role];
+            return { role, nama: sg.nama || '-', nip: sg.nip || '', jabatan: sg.jabatan || role, alasan: sg.alasan || '', tanggal: sg.tanggal || '' };
+        }
+
+        function isIzinDitolak(p) {
+            return String(p.status || '').toLowerCase().includes('ditolak') || !!getRejectionInfo(p);
+        }
+
+        // Izin yang sudah selesai atau ditolak tidak lagi berjalan
+        function isIzinClosed(p) {
+            return isIzinSelesai(p) || isIzinDitolak(p);
+        }
+
+        function sigChipClass(status) {
+            if (status === 'Disetujui') return 'bg-green-100 text-green-700';
+            if (status === 'Ditolak') return 'bg-red-100 text-red-700';
+            return 'bg-amber-100 text-amber-700';
+        }
+
+        function rejectInfoHTML(p) {
+            const r = getRejectionInfo(p);
+            if (!r || !r.alasan) return '';
+            // Penolak sudah ditandai merah pada chip peran, cukup tampilkan alasannya
+            return `<p class="text-[10px] text-red-600 mt-1 font-normal normal-case leading-snug">${escapeAttr(r.alasan)}</p>`;
+        }
+
         function getIzinStatusLabel(p) {
+            if (isIzinDitolak(p)) return 'Ditolak';
             if (isIzinSelesai(p)) return 'Selesai';
             const sigs = Object.values(p.signatures || {});
             const allSigned = sigs.length > 0 && sigs.every(sg => sg.status === 'Disetujui');
@@ -1149,7 +1213,7 @@
 
         // NISN siswa yang masih memiliki izin berjalan (Pending / Aktif)
         function getSiswaDenganIzinAktif() {
-            return new Set(state.perizinanSiswa.filter(p => !isIzinSelesai(p)).map(p => String(p.nisn)));
+            return new Set(state.perizinanSiswa.filter(p => !isIzinClosed(p)).map(p => String(p.nisn)));
         }
 
         function formatShortDateTime(isoString) {
@@ -1303,12 +1367,78 @@
             }
         }
 
+        // Mode modal: pengajuan baru atau ubah pengajuan
+        function setIzinModalMode(editing) {
+            const title = document.getElementById('createIzinTitle');
+            const btn = document.getElementById('createIzinSubmitBtn');
+            const info = document.getElementById('izinEditInfo');
+            const pick = document.getElementById('izinSiswaPickBlock');
+            if (title) title.innerText = editing ? 'Ubah Pengajuan Perizinan' : 'Formulir Perizinan Siswa';
+            if (btn) btn.innerText = editing ? 'Simpan Perubahan' : 'Ajukan Perizinan';
+            if (editing) {
+                if (info) info.classList.remove('hidden');
+                if (pick) pick.classList.add('hidden');
+            } else {
+                if (info) info.classList.add('hidden');
+                if (pick) pick.classList.remove('hidden');
+            }
+        }
+
         function openCreateIzinModal() {
+            // Bersihkan isian bila sebelumnya modal dipakai untuk mengubah pengajuan
+            if (state.izinEditId) {
+                ['waktuKeluarInput', 'waktuKembaliInput', 'izinKeteranganInput'].forEach(id => {
+                    const e = document.getElementById(id);
+                    if (e) e.value = '';
+                });
+                state.izinKeperluan = 'meninggalkan sekolah';
+                const sel = document.getElementById('izinKeperluanSelect');
+                if (sel) { sel.value = state.izinKeperluan; sel.disabled = false; }
+            }
+            state.izinEditId = null;
+            setIzinModalMode(false);
             state.izinSelectedSiswa = [];
             state.izinSearchSiswa = '';
             const siswaBox = document.getElementById('siswaListContainer');
             if (siswaBox) siswaBox.innerHTML = renderSiswaJenjangList();
             state.isLockedKeperluan = false;
+            document.getElementById('createIzinModal').classList.remove('hidden');
+            document.getElementById('createIzinModal').classList.add('flex');
+            updateRolesInfo();
+        }
+
+        // Pengusul boleh mengubah rincian selama belum ada tanda tangan/penolakan sama sekali
+        function canUserEditIzin(p, user) {
+            if (!p || !user) return false;
+            if (isIzinClosed(p)) return false;
+            if (!p.nip || String(p.nip) !== String(user.nip)) return false;
+            const vals = Object.values(p.signatures || {});
+            return vals.length > 0 && vals.every(sg => (sg.status || 'Pending') === 'Pending');
+        }
+
+        function toDatetimeLocal(v) {
+            return String(v || '').replace(' ', 'T').slice(0, 16);
+        }
+
+        function openEditIzinModal(idIzin) {
+            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            if (!izin) return;
+            if (!canUserEditIzin(izin, state.user)) {
+                showToast("Pengajuan ini tidak dapat diubah (sudah ada tanda tangan atau bukan pengajuan Anda).", true);
+                return;
+            }
+            state.izinEditId = idIzin;
+            state.izinSelectedSiswa = [String(izin.nisn)];
+            state.izinKeperluan = izin.keperluan;
+            state.isLockedKeperluan = false;
+            document.getElementById('waktuKeluarInput').value = toDatetimeLocal(izin.waktuKeluar);
+            document.getElementById('waktuKembaliInput').value = toDatetimeLocal(izin.waktuKembali);
+            document.getElementById('izinKeteranganInput').value = izin.keterangan || '';
+            const sel = document.getElementById('izinKeperluanSelect');
+            if (sel) { sel.value = izin.keperluan; sel.disabled = false; }
+            const info = document.getElementById('izinEditInfo');
+            if (info) info.innerHTML = `Siswa: <b class="text-slate-900">${escapeAttr(izin.namaSiswa)}</b> (${escapeAttr(izin.nisn)}) &bull; Kelas ${escapeAttr(izin.kelas)}-${escapeAttr(izin.rombel || '-')}<br><span class="text-[11px] text-slate-400">Siswa tidak dapat diubah. Untuk mengganti siswa, hapus pengajuan lalu ajukan kembali.</span>`;
+            setIzinModalMode(true);
             document.getElementById('createIzinModal').classList.remove('hidden');
             document.getElementById('createIzinModal').classList.add('flex');
             updateRolesInfo();
@@ -1329,6 +1459,77 @@
             updateRolesInfo();
         }
 
+        // Peran penandatangan sesuai jenis izin & kelas siswa (urutan = urutan tampil di surat)
+        function getSignerRoles(keperluan, siswaObj) {
+            const kRStr = siswaObj && siswaObj.kelas && siswaObj.rombel ? `${siswaObj.kelas}-${siswaObj.rombel}` : (siswaObj && siswaObj.kelas ? siswaObj.kelas : '');
+            const wali = kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas';
+            switch (keperluan) {
+                case 'meninggalkan sekolah': return ['Waka Kesiswaan', wali];
+                case 'pemeriksaan kesehatan': return ['Kepala UKSR', 'Tenaga Kesehatan'];
+                case 'meninggalkan asrama': return ['Waka Keasramaan', getWaliAsuhRole(siswaObj ? siswaObj.kelas : '')];
+                case 'kepulangan panjang': return ['Waka Kesiswaan', 'Waka Keasramaan', wali];
+                default: return [wali];
+            }
+        }
+
+        // Simpan perubahan rincian pengajuan (hanya bila belum ada tanda tangan sama sekali)
+        async function saveEditIzin(waktuKeluar, waktuKembali, keterangan) {
+            const idIzin = state.izinEditId;
+            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            if (!izin || !canUserEditIzin(izin, state.user)) {
+                showToast("Pengajuan ini tidak dapat diubah (sudah ada tanda tangan atau bukan pengajuan Anda).", true);
+                return;
+            }
+            showLoading("Menyimpan perubahan...");
+            try {
+                // Periksa data terbaru di database agar tidak menimpa tanda tangan yang baru masuk
+                const { data: rows, error: cekErr } = await supabaseClient.from('perizinan_siswa').select('signatures, status').eq('id_izin', idIzin);
+                if (cekErr) throw new Error(cekErr.message);
+                const cur = (rows || [])[0];
+                const curSigs = cur ? (parseJsonField(cur.signatures) || {}) : {};
+                const touched = Object.values(curSigs).some(sg => (sg.status || 'Pending') !== 'Pending');
+                if (!cur || touched || /ditolak|selesai|kembali/i.test(String(cur.status || ''))) {
+                    throw new Error("Pengajuan sudah mulai diproses (ditandatangani/ditolak) sehingga tidak dapat diubah lagi.");
+                }
+
+                const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || { kelas: izin.kelas, rombel: izin.rombel };
+                const roles = getSignerRoles(state.izinKeperluan, siswaObj);
+                const newSigs = {};
+                roles.forEach(r => { newSigs[r] = curSigs[r] || { nama: '-', nip: '-', status: 'Pending' }; });
+
+                const { error } = await supabaseClient.from('perizinan_siswa').update({
+                    keperluan: state.izinKeperluan,
+                    keterangan: keterangan,
+                    waktu_keluar: waktuKeluar,
+                    waktu_kembali: waktuKembali,
+                    signatures: newSigs
+                }).eq('id_izin', idIzin);
+                if (error) throw new Error(error.message);
+
+                showToast("Perubahan pengajuan berhasil disimpan.");
+                state.izinEditId = null;
+                closeCreateIzinModal();
+                await fetchAppData();
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menyimpan perubahan: " + err.message, true);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Nomor urut terbesar pada ID izin dengan awalan tertentu (mis. IS261116 -> 7 dari IS261116007)
+        async function getMaxIzinSeq(idHead) {
+            const { data, error } = await supabaseClient.from('perizinan_siswa').select('id_izin').like('id_izin', `${idHead}%`);
+            if (error) throw new Error(error.message);
+            let max = 0;
+            (data || []).forEach(r => {
+                const n = parseInt(String(r.id_izin || '').slice(idHead.length), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return max;
+        }
+
         async function submitPerizinan(e) {
             e.preventDefault();
             const waktuKeluar = document.getElementById('waktuKeluarInput').value;
@@ -1347,6 +1548,10 @@
                 showToast("Keterangan izin keluar harus diisi!", true);
                 return;
             }
+            if (state.izinEditId) {
+                await saveEditIzin(waktuKeluar, waktuKembali, keterangan);
+                return;
+            }
             if (state.izinSelectedSiswa.length === 0) {
                 showToast("Pilih minimal 1 siswa!", true);
                 return;
@@ -1361,7 +1566,7 @@
                 if (cekErr) throw new Error(cekErr.message);
                 const blocked = (existingIzin || []).filter(r => {
                     const st = String(r.status || '').toLowerCase();
-                    return !(st.includes('selesai') || st.includes('kembali') || r.realisasi);
+                    return !(st.includes('selesai') || st.includes('kembali') || st.includes('ditolak') || r.realisasi);
                 }).map(r => String(r.nisn));
                 if (blocked.length > 0) {
                     const names = [...new Set(blocked)].map(n => (state.siswa.find(x => x.nisn === n) || {}).nama || n).join(', ');
@@ -1382,32 +1587,22 @@
                 else if (state.izinKeperluan.includes('kesehatan')) prefix = 'IK';
                 else if (state.izinKeperluan.includes('kepulangan')) prefix = 'IP';
 
+                // Urutan berikutnya diambil dari nomor terbesar yang sudah ada (bukan jumlah data),
+                // sehingga tetap unik walaupun ada pengajuan yang dihapus
+                const idHead = `${prefix}${datePrefix}`;
+                const makeIzinId = n => `${idHead}${String(n).padStart(3, '0')}`;
+                let nextSeq = (await getMaxIzinSeq(idHead)) + 1;
+
                 for (let i = 0; i < state.izinSelectedSiswa.length; i++) {
                     const nisn = state.izinSelectedSiswa[i];
                     const siswaObj = state.siswa.find(s => s.nisn === nisn);
                     const kRStr = siswaObj && siswaObj.kelas && siswaObj.rombel ? `${siswaObj.kelas}-${siswaObj.rombel}` : (siswaObj && siswaObj.kelas ? siswaObj.kelas : '');
 
-                    const getRoles = (keperluan) => {
-                        switch(keperluan) {
-                            case 'meninggalkan sekolah': return ['Waka Kesiswaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
-                            case 'pemeriksaan kesehatan': return ['Kepala UKSR', 'Tenaga Kesehatan'];
-                            case 'meninggalkan asrama': return ['Waka Keasramaan', getWaliAsuhRole(siswaObj ? siswaObj.kelas : '')];
-                            case 'kepulangan panjang': return ['Waka Kesiswaan', 'Waka Keasramaan', kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
-                            default: return [kRStr ? `Wali Kelas ${kRStr}` : 'Wali Kelas'];
-                        }
-                    };
-
-                    let roles = getRoles(state.izinKeperluan);
+                    let roles = getSignerRoles(state.izinKeperluan, siswaObj);
                     let initialSigs = {};
                     roles.forEach(r => { initialSigs[r] = { nama: '-', nip: '-', status: 'Pending' }; });
                     
-                    const { count } = await supabaseClient
-                        .from('perizinan_siswa')
-                        .select('*', { count: 'exact', head: true })
-                        .like('id_izin', `${prefix}${datePrefix}%`);
-
-                    let seq = (count || 0) + 1 + i;
-                    const idIzin = `${prefix}${datePrefix}${String(seq).padStart(3, '0')}`;
+                    const idIzin = makeIzinId(nextSeq++);
 
                     const payload = {
                         id_izin: idIzin,
@@ -1424,8 +1619,17 @@
                         signatures: initialSigs
                     };
 
-                    const { error: insertErr } = await supabaseClient.from('perizinan_siswa').insert([payload]);
-                    if (insertErr) throw new Error(insertErr.message);
+                    // Jika tetap bentrok (mis. pengajuan bersamaan dari perangkat lain), ambil ulang nomor terbesar lalu coba lagi
+                    let inserted = false;
+                    for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
+                        const { error: insertErr } = await supabaseClient.from('perizinan_siswa').insert([payload]);
+                        if (!insertErr) { inserted = true; break; }
+                        const dup = insertErr.code === '23505' || /duplicate|unique/i.test(insertErr.message || '');
+                        if (!dup) throw new Error(insertErr.message);
+                        nextSeq = Math.max(nextSeq, (await getMaxIzinSeq(idHead)) + 1);
+                        payload.id_izin = makeIzinId(nextSeq++);
+                    }
+                    if (!inserted) throw new Error("Gagal membuat ID izin yang unik, silakan coba lagi.");
                 }
 
                 showToast("Perizinan siswa berhasil diajukan!");
@@ -1579,6 +1783,8 @@
         // Data penandatangan yang akan dicetak pada surat izin (nama, NIP, jabatan sebenarnya)
         function resolveSigner(izin, roleName) {
             const sig = (izin.signatures || {})[roleName] || {};
+            // Peran yang menolak tidak ditampilkan sebagai tanda tangan
+            if (sig.status === 'Ditolak') return { nama: '-', nip: '-', jabatan: roleName, status: 'Ditolak' };
             let nama = String(sig.nama || '').trim();
             let nip = String(sig.nip || '').trim();
             let jabatan = String(sig.jabatan || '').trim();
@@ -1658,7 +1864,7 @@
         function canUserSignNow(izin) {
             const sigs = izin.signatures || {};
             const allSigned = Object.values(sigs).length > 0 && Object.values(sigs).every(sg => sg.status === 'Disetujui');
-            if (allSigned || isIzinSelesai(izin) || !userCanSignIzin(izin, state.user)) return false;
+            if (allSigned || isIzinClosed(izin) || !userCanSignIzin(izin, state.user)) return false;
             const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || {};
             const kelas = siswaObj.kelas || izin.kelas || '';
             const rombel = siswaObj.rombel || izin.rombel || '';
@@ -1670,6 +1876,11 @@
             activeSignIdIzin = idIzin;
             const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
             if (!izin) return;
+            if (isIzinClosed(izin)) {
+                activeSignIdIzin = null;
+                showToast("Pengajuan ini sudah ditolak atau selesai.", true);
+                return;
+            }
             const sigs = izin.signatures || {};
             const userTugas = tugasSource(state.user).toLowerCase();
             const siswaObj = state.siswa.find(s => s.nisn === String(izin.nisn)) || {};
@@ -1756,6 +1967,106 @@
             document.getElementById('signModalContent').innerHTML = renderSignReviewHTML(izin) + html;
             document.getElementById('signModal').classList.remove('hidden');
             document.getElementById('signModal').classList.add('flex');
+        }
+
+        // --- PENOLAKAN PENGAJUAN ---
+        let activeRejectIdIzin = null;
+
+        // Peran yang akan ditolak oleh pengguna (belum menandatangani)
+        function getRejectRoleForUser(izin, selectedRole) {
+            const sigs = izin.signatures || {};
+            if (state.user.isAdmin) {
+                return selectedRole && sigs[selectedRole] && sigs[selectedRole].status !== 'Disetujui' ? selectedRole : null;
+            }
+            const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || {};
+            const kelas = siswaObj.kelas || izin.kelas || '';
+            const rombel = siswaObj.rombel || izin.rombel || '';
+            return orderSignerRoles(izin).find(r => userMatchesRole(state.user, r, kelas, rombel) && (sigs[r] || {}).status !== 'Disetujui') || null;
+        }
+
+        function openRejectModal(idIzin) {
+            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            if (!izin) return;
+            if (!canUserSignNow(izin)) {
+                showToast("Anda tidak dapat menolak pengajuan ini.", true);
+                return;
+            }
+            activeRejectIdIzin = idIzin;
+            const sigs = izin.signatures || {};
+            let roleHtml = '';
+            if (state.user.isAdmin) {
+                const opts = orderSignerRoles(izin).filter(r => (sigs[r] || {}).status !== 'Disetujui');
+                roleHtml = `
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Menolak sebagai</label>
+                        <select id="rejectRoleSelect" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                            ${opts.map(r => `<option value="${escapeAttr(r)}">${escapeAttr(r)}</option>`).join('')}
+                        </select>
+                        <p class="text-[11px] text-slate-400 mt-1">Penolakan dicatat atas nama Anda (${escapeAttr(state.user.nama)}).</p>
+                    </div>`;
+            } else {
+                const role = getRejectRoleForUser(izin);
+                roleHtml = `<p class="text-xs text-slate-600">Anda akan menolak sebagai: <b class="text-slate-900">${escapeAttr(role || '-')}</b></p>`;
+            }
+            document.getElementById('rejectModalContent').innerHTML = renderSignReviewHTML(izin) + roleHtml + `
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Alasan Penolakan</label>
+                    <textarea id="rejectReasonInput" rows="3" placeholder="Tuliskan alasan penolakan..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs"></textarea>
+                </div>
+            `;
+            document.getElementById('rejectModal').classList.remove('hidden');
+            document.getElementById('rejectModal').classList.add('flex');
+        }
+
+        function closeRejectModal() {
+            activeRejectIdIzin = null;
+            document.getElementById('rejectModal').classList.remove('flex');
+            document.getElementById('rejectModal').classList.add('hidden');
+        }
+
+        function triggerRejectConfirmation() {
+            const izin = state.perizinanSiswa.find(p => p.idIzin === activeRejectIdIzin);
+            if (!izin || !canUserSignNow(izin)) {
+                closeRejectModal();
+                showToast("Anda tidak dapat menolak pengajuan ini.", true);
+                return;
+            }
+            const alasan = (document.getElementById('rejectReasonInput').value || '').trim();
+            if (!alasan) {
+                showToast("Alasan penolakan harus diisi!", true);
+                return;
+            }
+            const roleSel = document.getElementById('rejectRoleSelect');
+            const role = getRejectRoleForUser(izin, roleSel ? roleSel.value : null);
+            if (!role) {
+                showToast("Peran penolak tidak ditemukan.", true);
+                return;
+            }
+            const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || {};
+            const kelas = siswaObj.kelas || izin.kelas || '';
+            const rombel = siswaObj.rombel || izin.rombel || '';
+            const idIzin = izin.idIzin;
+
+            showCustomConfirm(`Tolak pengajuan izin untuk ${izin.namaSiswa}? Pengajuan yang ditolak tidak dapat diproses kembali.`, async () => {
+                showLoading("Memproses penolakan...");
+                try {
+                    const sigs = { ...(izin.signatures || {}) };
+                    const jabatan = state.user.isAdmin
+                        ? (tugasSource(state.user) || 'Administrator')
+                        : (findRoleSegment(state.user, role, kelas, rombel) || role);
+                    sigs[role] = { nama: state.user.nama, nip: state.user.nip, jabatan, status: 'Ditolak', alasan, tanggal: new Date().toISOString() };
+                    const { error } = await supabaseClient.from('perizinan_siswa').update({ signatures: sigs, status: 'Ditolak' }).eq('id_izin', idIzin);
+                    if (error) throw new Error(error.message);
+                    closeRejectModal();
+                    showToast("Pengajuan izin telah ditolak.");
+                    await fetchAppData();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal menolak pengajuan: " + err.message, true);
+                } finally {
+                    hideLoading();
+                }
+            });
         }
 
         function closeSignModal() {
@@ -2094,6 +2405,12 @@
 
             const sigKeys = orderSignerRoles(izin);
             const totalSigs = sigKeys.length;
+            const rej = getRejectionInfo(izin);
+            const rejectBannerHtml = rej ? `
+                <div class="border border-red-300 bg-red-50 text-red-700 rounded-lg p-3 text-xs">
+                    <b>PENGAJUAN DITOLAK</b> ${rej.tanggal ? ' pada ' + escapeAttr(formatIndonesianDateTime(rej.tanggal)) + ' WIB' : ''}.
+                    ${rej.alasan ? '<br>Alasan: ' + escapeAttr(rej.alasan) : ''}
+                </div>` : '';
             const nowFormatted = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 
             let sigBoxesHtml = '';
@@ -2213,6 +2530,7 @@
                         <p class="text-xs sm:text-sm pt-2">Demikian surat pemberian izin <b>${izin.keperluan}</b> ini untuk digunakan sebagaimana mestinya.</p>
                     </div>
 
+                    ${rejectBannerHtml}
                     ${sigBoxesHtml}
                 </div>
 
@@ -3503,7 +3821,7 @@
         function renderLaporanPerizinanContent() {
             const main = document.getElementById('mainContent');
             const jenisOpts = [['semua', 'Semua Jenis Izin'], ...Object.entries(KEPERLUAN_LABEL)];
-            const statusOpts = [['semua', 'Semua Status'], ['Pending', 'Pending'], ['Aktif', 'Aktif'], ['Selesai', 'Selesai']];
+            const statusOpts = [['semua', 'Semua Status'], ['Pending', 'Pending'], ['Aktif', 'Aktif'], ['Selesai', 'Selesai'], ['Ditolak', 'Ditolak']];
             const activeFilterCount = (state.reportIzinJenis !== 'semua' ? 1 : 0) + (state.reportIzinStatus !== 'semua' ? 1 : 0);
             main.innerHTML = `
                 <div class="h-full flex flex-col overflow-hidden space-y-4">
@@ -3593,11 +3911,11 @@
                                                 <td class="p-1.5 border">
                                                     <div class="flex flex-wrap gap-1">
                                                         ${Object.entries(sigs).map(([role, sig]) => `
-                                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold break-words ${sig.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${role}</span>
+                                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold break-words ${sigChipClass(sig.status)}">${role}</span>
                                                         `).join('')}
                                                     </div>
                                                 </td>
-                                                <td class="p-1.5 border font-bold">${getIzinStatusLabel(p)}</td>
+                                                <td class="p-1.5 border font-bold">${getIzinStatusLabel(p)}${rejectInfoHTML(p)}</td>
                                             </tr>
                                         `;
                                     }).join('')}
