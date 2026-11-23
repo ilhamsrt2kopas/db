@@ -39,6 +39,18 @@
         }
     </script>
     <style>
+        /* Cetak surat/laporan pada kertas A4 */
+        @page { size: A4 portrait; margin: 10mm; }
+
+        /* Surat pemberian izin saat surat keterangan kembali tidak ditampilkan: isi satu halaman A4 penuh */
+        #printableLetter.letter-fill { aspect-ratio: 210 / 297; display: flex; flex-direction: column; }
+        #printableLetter.letter-fill > .letter-part1 { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
+        #printableLetter.letter-fill .text-xs { font-size: .875rem; line-height: 1.4; }
+        #printableLetter.letter-fill .text-sm { font-size: 1rem; line-height: 1.5; }
+        #printableLetter.letter-fill .text-\[11px\] { font-size: .8125rem; }
+        #printableLetter.letter-fill .text-\[10px\] { font-size: .75rem; }
+        #printableLetter.letter-fill table td { padding-top: .25rem; padding-bottom: .25rem; }
+
         @media print {
             body * { visibility: hidden; }
             #printableLetter, #printableLetter *, #printableReport, #printableReport * { visibility: visible; }
@@ -144,12 +156,38 @@
         </div>
     </div>
 
+    <!-- Modal Tandai Status Siswa (pasif / sakit / keluar tanpa izin) -->
+    <div id="markModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-40 p-4" onclick="closeMarkModal()">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-user-tag text-orange-500"></i> <span id="markModalTitle">Tandai Status Siswa</span>
+            </h3>
+            <p id="markModalSummary" class="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3"></p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Sejak</label>
+                    <input type="datetime-local" id="markWaktuInput" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Keterangan (Opsional)</label>
+                    <textarea id="markKeteranganInput" rows="3" placeholder="Keterangan tambahan..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs"></textarea>
+                </div>
+                <p id="markModalNote" class="text-[11px] text-slate-400"></p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeMarkModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold">Batal</button>
+                <button onclick="submitMark()" class="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-semibold">Simpan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Input Pengembalian / Penyelesaian Siswa -->
     <div id="returnInputModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4" onclick="closeReturnInputModal()">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation(); handleReturnModalClick(event)">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <i class="fa-solid fa-circle-check text-green-600"></i> Catatan Kembali ke Sekolah
             </h3>
+            <p id="returnModalInfo" class="hidden text-xs text-slate-500"></p>
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tanggal Kembali</label>
@@ -260,6 +298,7 @@
             siswa: [],
             penggunaList: [],
             perizinanSiswa: [],
+            statusSiswa: [],
             // Navigasi
             activeTab: 'dashboard',
             perizinanSubTab: 'aktif',
@@ -289,6 +328,14 @@
             izinSelectedSiswa: [],
             izinSearchSiswa: '',
             izinEditId: null,
+            riwayatSortCol: null,
+            riwayatSortAsc: true,
+            // Daftar siswa (pasif / sakit / keluar tanpa izin)
+            siswaSelected: [],
+            siswaSearch: '',
+            siswaFilterJenjang: 'semua',
+            siswaFilterStatus: 'semua',
+            siswaView: 'daftar',
             // Filter laporan perizinan
             reportIzinJenis: 'semua',
             reportIzinStatus: 'semua',
@@ -308,6 +355,7 @@
         let confirmCallback = null;
         let activeSignIdIzin = null;
         let activeReturnIdIzin = null;
+        let activeReturnIds = [];
 
         function showCustomConfirm(text, onYes) {
             document.getElementById('customConfirmText').innerText = text;
@@ -474,7 +522,7 @@
                     };
                 });
 
-                state.perizinanSiswa = (dataIzin || []).map(i => {
+                const semuaRekam = (dataIzin || []).map(i => {
                     const siswaObj = state.siswa.find(s => s.nisn === String(i.nisn));
                     return {
                         idIzin: i.id_izin || i.id,
@@ -495,6 +543,9 @@
                         signatures: parseJsonField(i.signatures) || {}
                     };
                 });
+                // Izin biasa dan catatan status siswa (pasif/sakit/keluar tanpa izin) disimpan pada tabel yang sama
+                state.perizinanSiswa = semuaRekam.filter(r => !isStatusRecord(r));
+                state.statusSiswa = semuaRekam.filter(r => isStatusRecord(r));
 
                 render();
             } catch (err) {
@@ -636,7 +687,8 @@
             return [
                 { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-check' },
                 { id: 'aktif', label: 'Aktif', icon: 'fa-person-walking-arrow-right' },
-                { id: 'riwayat', label: 'Riwayat', icon: 'fa-clock-rotate-left' }
+                { id: 'riwayat', label: 'Riwayat', icon: 'fa-clock-rotate-left' },
+                { id: 'siswa', label: 'Daftar Siswa', icon: 'fa-users' }
             ];
         }
 
@@ -759,28 +811,54 @@
         }
 
         // --- DASBOR ---
-        function getAllCategoriesStats() {
-            return CATEGORIES_LIST.map(cat => ({
-                category: cat,
-                itemCount: state.barang.filter(b => b.kategori === cat).length
-            }));
+        // Jumlah siswa per jenjang menurut status: aktif, pasif, sakit, keluar dengan izin, keluar tanpa izin
+        const JENJANG_KELAS_TEXT = { SRD: '1-6', SRMP: '7-9', SRMA: '10-12' };
+
+        function getJenjangStats() {
+            const sm = getStudentStatusMap();
+            const groups = {};
+            ['SRD', 'SRMP', 'SRMA', 'Data Kelas Belum Terdaftar'].forEach(j => { groups[j] = { jenjang: j, total: 0, aktif: 0, pasif: 0, sakit: 0, dengan: 0, tanpa: 0 }; });
+            state.siswa.forEach(sw => {
+                const g = groups[getJenjang(sw.kelas)];
+                g.total++;
+                const e = sm.get(String(sw.nisn));
+                const k = e ? e.kind : 'aktif';
+                if (k === 'pasif') g.pasif++;
+                else if (k === 'sakit') g.sakit++;
+                else if (k === 'dengan_izin') g.dengan++;
+                else if (k === 'tanpa_izin') g.tanpa++;
+                else g.aktif++;
+            });
+            return Object.values(groups).filter(g => g.jenjang !== 'Data Kelas Belum Terdaftar' || g.total > 0);
         }
+
+        // Kunci perubahan data yang bergantung pada waktu (untuk penyegaran dasbor tiap menit)
+        function dashboardTimeKey() {
+            const now = new Date();
+            return state.perizinanSiswa.filter(p => !isIzinClosed(p)).map(p => p.idIzin + ':' + (isIzinMulai(p, now) ? 1 : 0)).join('|');
+        }
+        let lastDashKey = '';
+        let jenjangChart = null;
 
         function renderDashboardContent() {
             const main = document.getElementById('mainContent');
             const DASH_LIMIT = 2;
             const allIzinBerjalan = state.perizinanSiswa.filter(p => !isIzinClosed(p));
-            const isAllSigned = p => { const v = Object.values(p.signatures || {}); return v.length > 0 && v.every(x => x.status === 'Disetujui'); };
-            // Bagian 1: menunggu persetujuan (yang perlu ditandatangani pengguna ditampilkan lebih dulu); bagian 2: aktif
-            const waitingIzin = allIzinBerjalan.filter(p => !isAllSigned(p))
-                .sort((a, b) => (canUserSignNow(b) ? 1 : 0) - (canUserSignNow(a) ? 1 : 0));
-            const aktifIzin = allIzinBerjalan.filter(p => isAllSigned(p));
+            const nowD = new Date();
+            const isAllSigned = isAllSignedIzin;
+            // Bagian 1: menunggu persetujuan (keluar tanpa izin paling atas, lalu yang perlu ditandatangani pengguna)
+            const prio = p => (isKeluarTanpaIzin(p, nowD) ? 2 : 0) + (canUserSignNow(p) ? 1 : 0);
+            const waitingIzin = allIzinBerjalan.filter(p => !isAllSigned(p)).sort((a, b) => prio(b) - prio(a));
+            // Bagian 2: aktif = sudah lengkap ditandatangani DAN sudah memasuki waktu rencana berangkat
+            const aktifIzin = allIzinBerjalan.filter(p => isAllSigned(p) && isIzinMulai(p, nowD));
+            const tanpaIzinCount = waitingIzin.filter(p => isKeluarTanpaIzin(p, nowD)).length;
             const activeLoans = state.transaksi.filter(t => {
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
                 let isUnreturned = !(t.status || '').toLowerCase().includes('dikembalikan');
                 return isJenisPinjam && isUnreturned;
             });
             const todayAmbil = state.transaksi.filter(t => t.isToday && (t.jenis || '').toLowerCase().includes('ambil'));
+            const jenjangStats = getJenjangStats();
 
             // Tombol "Selengkapnya" hanya muncul jika ada baris yang tidak terlihat
             const moreButton = (total, action) => {
@@ -794,12 +872,14 @@
                 let sigs = p.signatures || {};
                 const allSigned = isAllSigned(p);
                 const canSign = canUserSignNow(p);
+                const tanpaIzin = isKeluarTanpaIzin(p, nowD);
                 return `
-                    <div class="p-3 bg-slate-50 rounded-xl border ${canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100'} flex items-center justify-between gap-2">
+                    <div class="p-3 rounded-xl border ${tanpaIzin ? 'border-red-300 bg-red-50/60' : (canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100 bg-slate-50')} flex items-center justify-between gap-2">
                         <div class="min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${p.namaSiswa} <span class="text-xs text-orange-600 font-medium">(Kelas ${p.kelas}-${p.rombel || '-'})</span></p>
                             <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
                             <div class="flex flex-wrap gap-1 mt-1">
+                                ${tanpaIzin ? tanpaIzinBadgeHTML() : ''}
                                 ${Object.entries(sigs).map(([role, sig]) => `
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
                                 `).join('')}
@@ -883,10 +963,10 @@
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
                                 <i class="fa-solid fa-id-badge text-orange-500"></i> Siswa yang Sedang Izin Keluar
                             </h3>
-                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${allIzinBerjalan.length} Siswa</span>
+                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${waitingIzin.length + aktifIzin.length} Siswa</span>
                         </div>
                         <div class="space-y-5">
-                            ${izinSection('Menunggu Persetujuan', 'fa-hourglass-half', 'text-amber-500', waitingIzin, 'Tidak ada izin yang menunggu persetujuan.', "goToTab('perizinan', 'persetujuan')")}
+                            ${izinSection('Menunggu Persetujuan' + (tanpaIzinCount > 0 ? ` <span class="ml-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">${tanpaIzinCount} keluar tanpa izin</span>` : ''), 'fa-hourglass-half', 'text-amber-500', waitingIzin, 'Tidak ada izin yang menunggu persetujuan.', "goToTab('perizinan', 'persetujuan')")}
                             <div class="border-t border-slate-100"></div>
                             ${izinSection('Aktif', 'fa-person-walking-arrow-right', 'text-green-600', aktifIzin, 'Tidak ada siswa yang sedang izin keluar.', "goToTab('perizinan', 'aktif')")}
                         </div>
@@ -922,63 +1002,97 @@
                         </div>
                     </div>
 
-                    <!-- Statistik Jumlah Item Berdasarkan Kategori -->
-                    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col mb-4">
-                        <div class="flex justify-between items-center mb-4">
+                    <!-- Statistik siswa per jenjang: batang bertumpuk (hemat ruang) -->
+                    <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col mb-4">
+                        <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-chart-column text-orange-500"></i> Statistik Jumlah Item Berdasarkan Kategori
+                                <i class="fa-solid fa-chart-column text-orange-500"></i> Statistik Siswa per Jenjang
                             </h3>
+                            <span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-bold">${jenjangStats.reduce((a, g) => a + g.total, 0)} Siswa</span>
                         </div>
-                        <div class="relative w-full h-80 sm:h-96 flex items-center justify-center">
-                            <canvas id="combinedCategoryChart"></canvas>
-                        </div>
+                        <div class="relative w-full" style="height: 230px;"><canvas id="jenjangChart"></canvas></div>
+                        ${(() => { const u = jenjangStats.find(g => g.jenjang === 'Data Kelas Belum Terdaftar'); return u ? `<p class="text-[11px] text-slate-400 mt-2">${u.total} siswa tanpa data kelas yang valid tidak ditampilkan pada diagram.</p>` : ''; })()}
                     </div>
                 </div>
             `;
-            setTimeout(initCombinedCategoryChart, 100);
+            lastDashKey = dashboardTimeKey();
+            setTimeout(initJenjangChart, 100);
         }
 
-        function initCombinedCategoryChart() {
-            const ctx = document.getElementById('combinedCategoryChart');
+        // Menuliskan jumlah di dalam tiap segmen batang
+        const segLabelPlugin = {
+            id: 'segLabels',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx;
+                chart.data.datasets.forEach((ds, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    if (meta.hidden) return;
+                    meta.data.forEach((bar, idx) => {
+                        const v = ds.data[idx];
+                        if (!v) return;
+                        if (Math.abs(bar.x - bar.base) < 16) return;
+                        ctx.save();
+                        ctx.fillStyle = ds.labelColor || '#ffffff';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(String(v), (bar.x + bar.base) / 2, bar.y);
+                        ctx.restore();
+                    });
+                });
+            }
+        };
+
+        // Satu diagram batang bertumpuk horizontal: satu batang per jenjang, tiap batang terbagi menurut status
+        function initJenjangChart() {
+            const ctx = document.getElementById('jenjangChart');
             if (!ctx) return;
-
-            const stats = getAllCategoriesStats();
-            const labels = stats.map(s => s.category);
-            const dataCounts = stats.map(s => s.itemCount);
-
-            new Chart(ctx, {
+            if (jenjangChart) { try { jenjangChart.destroy(); } catch (e) { /* abaikan */ } }
+            const stats = getJenjangStats().filter(g => g.jenjang !== 'Data Kelas Belum Terdaftar');
+            const series = [
+                ['aktif', 'aktif'], ['pasif', 'pasif'], ['sakit', 'sakit'], ['dengan_izin', 'dengan'], ['tanpa_izin', 'tanpa']
+            ];
+            jenjangChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Jumlah Item',
-                        data: dataCounts,
-                        backgroundColor: '#f97316',
-                        borderRadius: 8,
-                    }]
+                    labels: stats.map(g => `${g.jenjang} (${g.total})`),
+                    datasets: series.map(([key, field]) => ({
+                        label: STUDENT_STATUS[key].label,
+                        data: stats.map(g => g[field]),
+                        backgroundColor: STUDENT_STATUS[key].color,
+                        labelColor: key === 'sakit' ? '#422006' : '#ffffff',
+                        borderRadius: 3,
+                        barThickness: 26
+                    }))
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { display: false } 
+                    plugins: {
+                        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
                     },
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            grid: { borderDash: [4, 4] },
-                            ticks: { 
-                                font: { size: 11 },
-                                precision: 0 
-                            }
-                        },
-                        x: { 
-                            grid: { display: false }, 
-                            ticks: { font: { size: 11 } } 
-                        }
+                        x: { stacked: true, beginAtZero: true, grid: { borderDash: [4, 4] }, ticks: { font: { size: 11 }, precision: 0 } },
+                        y: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
                     }
-                }
+                },
+                plugins: [segLabelPlugin]
             });
+        }
+
+        // Segarkan dasbor tiap menit bila ada izin yang baru memasuki waktu rencana berangkat
+        if (typeof setInterval === 'function') {
+            setInterval(() => {
+                if (state.user && state.activeTab === 'dashboard' && dashboardTimeKey() !== lastDashKey) {
+                    const main = document.getElementById('mainContent');
+                    const sc = main ? main.firstElementChild : null;
+                    const top = sc ? sc.scrollTop : 0;
+                    renderDashboardContent();
+                    const sc2 = main ? main.firstElementChild : null;
+                    if (sc2) sc2.scrollTop = top;
+                }
+            }, 60000);
         }
 
         // --- PERIZINAN SISWA ---
@@ -993,6 +1107,11 @@
 
             if (!perizinanTabs.some(t => t.id === state.perizinanSubTab)) {
                 state.perizinanSubTab = isSigner ? 'persetujuan' : 'aktif';
+            }
+
+            if (state.perizinanSubTab === 'siswa') {
+                renderDaftarSiswaContent();
+                return;
             }
 
             let displayedPerizinan = state.perizinanSiswa.filter(p => {
@@ -1011,6 +1130,17 @@
                 }
                 return true;
             });
+
+            // Riwayat: dapat diurutkan menurut kolom yang dipilih
+            if (state.perizinanSubTab === 'riwayat' && state.riwayatSortCol) {
+                displayedPerizinan = sortRiwayat(displayedPerizinan, state.riwayatSortCol, state.riwayatSortAsc);
+            }
+            const sortTh = (label, key, extra) => {
+                if (state.perizinanSubTab !== 'riwayat') return `<th class="p-3 ${extra || ''}">${label}</th>`;
+                const active = state.riwayatSortCol === key;
+                const icon = active ? (state.riwayatSortAsc ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+                return `<th class="p-3 ${extra || ''} cursor-pointer select-none hover:text-orange-600 ${active ? 'text-orange-600' : ''}" onclick="setRiwayatSort('${key}')" title="Urutkan berdasarkan ${label}" aria-sort="${active ? (state.riwayatSortAsc ? 'ascending' : 'descending') : 'none'}">${label} <i class="fa-solid ${icon} ml-0.5 ${active ? '' : 'text-slate-300'}"></i></th>`;
+            };
 
             main.innerHTML = `
                 <div class="h-full flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -1038,12 +1168,12 @@
                             <table class="w-full text-left border-collapse text-xs sm:text-sm">
                                 <thead class="bg-slate-50 sticky top-0">
                                     <tr class="border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        <th class="p-3">Siswa & Kelas</th>
-                                        <th class="p-3">Keterangan</th>
-                                        <th class="p-3">Waktu Keluar</th>
-                                        <th class="p-3">Estimasi Kembali</th>
-                                        ${state.perizinanSubTab === 'riwayat' ? '<th class="p-3">Realisasi Kembali</th>' : ''}
-                                        <th class="p-3">Status / Tanda Tangan</th>
+                                        ${sortTh('Siswa & Kelas', 'siswa')}
+                                        ${sortTh('Keterangan', 'keterangan')}
+                                        ${sortTh('Waktu Keluar', 'waktuKeluar')}
+                                        ${sortTh('Estimasi Kembali', 'waktuKembali')}
+                                        ${state.perizinanSubTab === 'riwayat' ? sortTh('Realisasi Kembali', 'realisasi') : ''}
+                                        ${sortTh('Status / Tanda Tangan', 'status')}
                                         <th class="p-3 text-center">Aksi</th>
                                     </tr>
                                 </thead>
@@ -1078,7 +1208,7 @@
                                                 ${state.perizinanSubTab === 'riwayat' ? `<td class="p-3 text-xs text-green-600 font-bold">${isIzinDitolak(p) ? '<span class="text-slate-400 font-normal">-</span>' : formatIndonesianDateTime(p.realisasi)}</td>` : ''}
                                                 <td class="p-3">
                                                     <div class="space-y-1">
-                                                        <span class="px-2 py-0.5 ${displayStatus === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'} rounded text-[10px] font-bold">${displayStatus}</span>${rejectInfoHTML(p)}
+                                                        <span class="px-2 py-0.5 ${displayStatus === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'} rounded text-[10px] font-bold">${displayStatus}</span>${isKeluarTanpaIzin(p) ? ' ' + tanpaIzinBadgeHTML() : ''}${rejectInfoHTML(p)}
                                                         <div class="flex flex-wrap gap-1 mt-1">
                                                             ${Object.entries(sigs).map(([role, sig]) => `
                                                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
@@ -1098,7 +1228,7 @@
                                                     ${allSigned && (!p.realisasi || p.realisasi === '-') ? `
                                                         <button onclick="openReturnInputModalHandler('${p.idIzin}')" class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium">Kembali</button>
                                                     ` : ''}
-                                                    ${canDelete ? `
+                                                    ${(canDelete && state.perizinanSubTab !== 'riwayat') ? `
                                                         <button onclick="deletePerizinan('${p.idIzin}')" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium" title="Hapus"><i class="fa-solid fa-trash"></i></button>
                                                     ` : ''}
                                                 </td>
@@ -1201,6 +1331,33 @@
             if (!r || !r.alasan) return '';
             // Penolak sudah ditandai merah pada chip peran, cukup tampilkan alasannya
             return `<p class="text-[10px] text-red-600 mt-1 font-normal normal-case leading-snug">${escapeAttr(r.alasan)}</p>`;
+        }
+
+        // --- WAKTU BERANGKAT & PENANDAAN KELUAR TANPA IZIN ---
+        function parseWaktu(v) {
+            const d = new Date(String(v || '').replace(' ', 'T'));
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function isAllSignedIzin(p) {
+            const v = Object.values(p.signatures || {});
+            return v.length > 0 && v.every(x => x.status === 'Disetujui');
+        }
+
+        // Sudah memasuki waktu rencana berangkat
+        function isIzinMulai(p, now) {
+            const d = parseWaktu(p.waktuKeluar);
+            return !!d && d <= (now || new Date());
+        }
+
+        // Waktu berangkat sudah tiba, tetapi izin belum lengkap ditandatangani (belum ditolak/selesai):
+        // siswa dianggap keluar tanpa izin
+        function isKeluarTanpaIzin(p, now) {
+            return !isIzinClosed(p) && !isAllSignedIzin(p) && isIzinMulai(p, now);
+        }
+
+        function tanpaIzinBadgeHTML() {
+            return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Keluar tanpa izin</span>';
         }
 
         function getIzinStatusLabel(p) {
@@ -1384,6 +1541,41 @@
             }
         }
 
+        // Pengurutan tabel Riwayat Perizinan
+        function sortRiwayat(list, col, asc) {
+            const val = p => {
+                switch (col) {
+                    case 'siswa': return String(p.namaSiswa || '').toLowerCase();
+                    case 'keterangan': return String(p.keterangan || '').toLowerCase();
+                    case 'waktuKeluar': { const d = parseWaktu(p.waktuKeluar); return d ? d.getTime() : null; }
+                    case 'waktuKembali': { const d = parseWaktu(p.waktuKembali); return d ? d.getTime() : null; }
+                    case 'realisasi': { const d = parseWaktu(p.realisasi); return d ? d.getTime() : null; }
+                    case 'status': return getIzinStatusLabel(p).toLowerCase();
+                    default: return '';
+                }
+            };
+            return list.map((p, i) => ({ p, i, v: val(p) })).sort((a, b) => {
+                // data kosong selalu di bagian bawah, apa pun arah urutannya
+                if (a.v === null && b.v === null) return a.i - b.i;
+                if (a.v === null) return 1;
+                if (b.v === null) return -1;
+                let c = typeof a.v === 'number' ? a.v - b.v : a.v.localeCompare(b.v, 'id', { numeric: true });
+                if (c === 0) return a.i - b.i;
+                return asc ? c : -c;
+            }).map(x => x.p);
+        }
+
+        function setRiwayatSort(col) {
+            if (state.riwayatSortCol === col) {
+                state.riwayatSortAsc = !state.riwayatSortAsc;
+            } else {
+                state.riwayatSortCol = col;
+                // kolom waktu dimulai dari yang terbaru, kolom teks dari A ke Z
+                state.riwayatSortAsc = !['waktuKeluar', 'waktuKembali', 'realisasi'].includes(col);
+            }
+            render();
+        }
+
         function openCreateIzinModal() {
             // Bersihkan isian bila sebelumnya modal dipakai untuk mengubah pengajuan
             if (state.izinEditId) {
@@ -1413,7 +1605,8 @@
             if (isIzinClosed(p)) return false;
             if (!p.nip || String(p.nip) !== String(user.nip)) return false;
             const vals = Object.values(p.signatures || {});
-            return vals.length > 0 && vals.every(sg => (sg.status || 'Pending') === 'Pending');
+            // Tanda tangan otomatis milik pengusul sendiri tidak dihitung sebagai "sudah diproses"
+            return vals.length > 0 && vals.every(sg => (sg.status || 'Pending') === 'Pending' || (sg.otomatis && String(sg.nip) === String(p.nip)));
         }
 
         function toDatetimeLocal(v) {
@@ -1459,6 +1652,361 @@
             updateRolesInfo();
         }
 
+        // --- STATUS SISWA: pasif / sakit / keluar tanpa izin ---
+        const STATUS_TYPES = {
+            'siswa pasif': { label: 'Pasif', prefix: 'SP', title: 'SISWA PASIF', returnReason: 'seusai berstatus pasif' },
+            'siswa sakit': { label: 'Sakit', prefix: 'SK', title: 'SISWA SAKIT', returnReason: 'seusai sakit' },
+            'keluar tanpa izin': { label: 'Keluar tanpa izin', prefix: 'KT', title: 'SISWA KELUAR TANPA IZIN', returnReason: 'seusai keluar sekolah tanpa izin' }
+        };
+
+        const STUDENT_STATUS = {
+            aktif: { label: 'Aktif', badge: 'bg-green-100 text-green-700', color: '#16a34a' },
+            pasif: { label: 'Pasif', badge: 'bg-slate-200 text-slate-700', color: '#64748b' },
+            sakit: { label: 'Sakit', badge: 'bg-yellow-100 text-yellow-800', color: '#eab308' },
+            dengan_izin: { label: 'Keluar dengan izin', badge: 'bg-orange-100 text-orange-700', color: '#f97316' },
+            tanpa_izin: { label: 'Keluar tanpa izin', badge: 'bg-red-100 text-red-700', color: '#dc2626' }
+        };
+
+        function statusTypeOf(p) { return STATUS_TYPES[String(p.keperluan || '').toLowerCase()] || null; }
+        function isStatusRecord(p) { return !!statusTypeOf(p); }
+        function findPerizinanRecord(id) {
+            return state.perizinanSiswa.find(p => p.idIzin === id) || state.statusSiswa.find(p => p.idIzin === id) || null;
+        }
+
+        // Status terkini tiap siswa. Prioritas: catatan manual (tanpa izin > sakit > pasif), lalu dari data izin
+        function getStudentStatusMap(now) {
+            now = now || new Date();
+            const map = new Map();
+            const put = (nisn, kind, prio, record, source) => {
+                const cur = map.get(nisn);
+                if (!cur || prio > cur.prio) map.set(nisn, { kind, prio, record, source });
+            };
+            state.statusSiswa.forEach(r => {
+                if (isIzinSelesai(r)) return;
+                const k = String(r.keperluan).toLowerCase() === 'siswa pasif' ? 'pasif' : (String(r.keperluan).toLowerCase() === 'siswa sakit' ? 'sakit' : 'tanpa_izin');
+                put(String(r.nisn), k, k === 'tanpa_izin' ? 6 : (k === 'sakit' ? 5 : 4), r, 'manual');
+            });
+            state.perizinanSiswa.forEach(p => {
+                if (isIzinClosed(p) || !isIzinMulai(p, now)) return;
+                if (isAllSignedIzin(p)) put(String(p.nisn), 'dengan_izin', 2, p, 'izin');
+                else put(String(p.nisn), 'tanpa_izin', 3, p, 'izin');
+            });
+            return map;
+        }
+
+        function getLatestStatusRecords() {
+            const m = new Map();
+            state.statusSiswa.slice()
+                .sort((a, b) => String(b.waktuKeluar).localeCompare(String(a.waktuKeluar)) || String(b.idIzin).localeCompare(String(a.idIzin)))
+                .forEach(r => { if (!m.has(String(r.nisn))) m.set(String(r.nisn), r); });
+            return m;
+        }
+
+        // --- SUB TAB DAFTAR SISWA ---
+        function getFilteredSiswaList() {
+            const q = String(state.siswaSearch || '').toLowerCase().trim();
+            const sm = getStudentStatusMap();
+            return state.siswa.filter(sw => {
+                if (state.siswaFilterJenjang !== 'semua' && getJenjang(sw.kelas) !== state.siswaFilterJenjang) return false;
+                const kind = (sm.get(String(sw.nisn)) || { kind: 'aktif' }).kind;
+                if (state.siswaFilterStatus !== 'semua' && kind !== state.siswaFilterStatus) return false;
+                if (q && !(String(sw.nama).toLowerCase().includes(q) || String(sw.nisn).includes(q) || String(sw.kelas).toLowerCase().includes(q) || String(sw.kamar || '').toLowerCase().includes(q))) return false;
+                return true;
+            });
+        }
+
+        function renderSiswaTableHTML() {
+            const list = getFilteredSiswaList();
+            if (list.length === 0) return '<p class="text-xs sm:text-sm text-slate-400 text-center py-8">Tidak ada siswa yang cocok.</p>';
+            const sm = getStudentStatusMap();
+            const latest = getLatestStatusRecords();
+            const sel = new Set(state.siswaSelected.map(String));
+            const allSelected = list.every(sw => sel.has(String(sw.nisn)));
+            return `
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead class="sticky top-0 bg-slate-50 z-10">
+                        <tr class="border-b border-slate-200 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th class="p-2.5 w-8"><input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleSiswaSelectAll(this.checked)" class="w-4 h-4 text-orange-500 rounded" title="Pilih semua yang tampil"></th>
+                            <th class="p-2.5">Siswa</th>
+                            <th class="p-2.5">Kelas</th>
+                            <th class="p-2.5">Kamar</th>
+                            <th class="p-2.5">Status</th>
+                            <th class="p-2.5 text-right">Surat</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${list.map(sw => {
+                            const nisn = String(sw.nisn);
+                            const entry = sm.get(nisn);
+                            const kind = entry ? entry.kind : 'aktif';
+                            const meta = STUDENT_STATUS[kind];
+                            const isSel = sel.has(nisn);
+                            let detail = '';
+                            if (entry && entry.source === 'manual') detail = `Sejak ${formatShortDateTime(entry.record.waktuKeluar)}`;
+                            else if (entry && kind === 'tanpa_izin') detail = 'Otomatis: izin belum lengkap ditandatangani';
+                            else if (entry && kind === 'dengan_izin') detail = 'Izin aktif';
+                            const rec = (entry && entry.record) || latest.get(nisn);
+                            return `
+                                <tr class="hover:bg-slate-50 ${isSel ? 'bg-orange-50/60' : ''}">
+                                    <td class="p-2.5"><input type="checkbox" ${isSel ? 'checked' : ''} onchange="toggleSiswaSelect('${escapeAttr(nisn)}', this.checked)" class="w-4 h-4 text-orange-500 rounded"></td>
+                                    <td class="p-2.5"><div class="font-semibold text-slate-800">${escapeAttr(sw.nama)}</div><div class="text-[11px] text-slate-500">NISN ${escapeAttr(nisn)}</div></td>
+                                    <td class="p-2.5 whitespace-nowrap">${escapeAttr(sw.kelas)}-${escapeAttr(sw.rombel || '-')}</td>
+                                    <td class="p-2.5">${escapeAttr(sw.kamar || '-')}</td>
+                                    <td class="p-2.5">
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold ${meta.badge}">${meta.label}</span>
+                                        ${detail ? `<div class="text-[10px] text-slate-500 mt-0.5">${detail}</div>` : ''}
+                                    </td>
+                                    <td class="p-2.5 text-right">
+                                        ${rec ? `<button onclick="openPrintLetterModal('${escapeAttr(rec.idIzin)}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs" title="Lihat Surat"><i class="fa-solid fa-eye"></i></button>` : '<span class="text-slate-300">-</span>'}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderSiswaActionBarHTML() {
+            const n = state.siswaSelected.length;
+            if (!n) return '<div class="shrink-0 px-4 py-2 border-b border-slate-100 text-[11px] text-slate-400">Pilih satu atau lebih siswa untuk menandai statusnya.</div>';
+            return `
+                <div class="shrink-0 px-4 py-3 border-b border-orange-100 bg-orange-50 flex flex-wrap items-center gap-2 text-xs">
+                    <span class="font-semibold text-orange-700 mr-1">${n} siswa dipilih</span>
+                    <button onclick="openMarkModal('siswa pasif')" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium">Pasif</button>
+                    <button onclick="openMarkModal('siswa sakit')" class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium">Sakit</button>
+                    <button onclick="openMarkModal('keluar tanpa izin')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">Keluar Tanpa Izin</button>
+                    <button onclick="openReturnForSelected()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"><i class="fa-solid fa-check mr-1"></i>Sudah Kembali</button>
+                    <button onclick="clearSiswaSelection()" class="px-2 py-1.5 text-slate-500 underline">Batal pilih</button>
+                </div>
+            `;
+        }
+
+        function renderCatatanTableHTML() {
+            const q = String(state.siswaSearch || '').toLowerCase().trim();
+            const rows = state.statusSiswa.slice()
+                .sort((a, b) => String(b.waktuKeluar).localeCompare(String(a.waktuKeluar)) || String(b.idIzin).localeCompare(String(a.idIzin)))
+                .filter(r => !q || String(r.namaSiswa).toLowerCase().includes(q) || String(r.nisn).includes(q) || String(r.idIzin).toLowerCase().includes(q) || String(statusTypeOf(r).label).toLowerCase().includes(q));
+            if (rows.length === 0) return '<p class="text-xs sm:text-sm text-slate-400 text-center py-8">Belum ada catatan status siswa.</p>';
+            return `
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead class="sticky top-0 bg-slate-50 z-10">
+                        <tr class="border-b border-slate-200 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th class="p-2.5">ID</th><th class="p-2.5">Siswa</th><th class="p-2.5">Status</th>
+                            <th class="p-2.5">Sejak</th><th class="p-2.5">Kembali</th><th class="p-2.5">Pelapor</th><th class="p-2.5 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${rows.map(r => {
+                            const t = statusTypeOf(r);
+                            const kind = String(r.keperluan).toLowerCase() === 'siswa pasif' ? 'pasif' : (String(r.keperluan).toLowerCase() === 'siswa sakit' ? 'sakit' : 'tanpa_izin');
+                            const open = !isIzinSelesai(r);
+                            const pelapor = findPenggunaByNip(r.nip);
+                            const canDelete = state.user.isAdmin || String(r.nip) === String(state.user.nip);
+                            return `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 font-mono text-[11px] font-bold text-slate-500">#${escapeAttr(r.idIzin)}</td>
+                                    <td class="p-2.5"><div class="font-semibold text-slate-800">${escapeAttr(r.namaSiswa)}</div><div class="text-[11px] text-slate-500">Kelas ${escapeAttr(r.kelas)}-${escapeAttr(r.rombel || '-')}</div></td>
+                                    <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${STUDENT_STATUS[kind].badge}">${t.label}</span>${r.keterangan && r.keterangan !== '-' ? `<div class="text-[10px] text-slate-500 mt-0.5">${escapeAttr(r.keterangan)}</div>` : ''}</td>
+                                    <td class="p-2.5 whitespace-nowrap">${formatShortDateTime(r.waktuKeluar)}</td>
+                                    <td class="p-2.5 whitespace-nowrap">${open ? '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[11px] font-bold">Belum kembali</span>' : formatShortDateTime(r.realisasi)}</td>
+                                    <td class="p-2.5">${pelapor ? escapeAttr(pelapor.nama) : '-'}</td>
+                                    <td class="p-2.5 text-right whitespace-nowrap">
+                                        ${open ? `<button onclick="openReturnModalForIds(['${escapeAttr(r.idIzin)}'])" class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs" title="Sudah Kembali"><i class="fa-solid fa-check"></i></button>` : ''}
+                                        <button onclick="openPrintLetterModal('${escapeAttr(r.idIzin)}')" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs" title="Lihat Surat"><i class="fa-solid fa-eye"></i></button>
+                                        ${canDelete ? `<button onclick="deletePerizinan('${escapeAttr(r.idIzin)}')" class="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs" title="Hapus Catatan"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function refreshSiswaUI() {
+            const wrap = document.getElementById('siswaTableWrap');
+            const bar = document.getElementById('siswaActionBar');
+            if (wrap) wrap.innerHTML = state.siswaView === 'catatan' ? renderCatatanTableHTML() : renderSiswaTableHTML();
+            if (bar) bar.innerHTML = state.siswaView === 'catatan' ? '' : renderSiswaActionBarHTML();
+        }
+
+        function renderDaftarSiswaContent() {
+            const main = document.getElementById('mainContent');
+            const view = state.siswaView === 'catatan' ? 'catatan' : 'daftar';
+            const statusOpts = [['semua', 'Semua Status'], ...Object.entries(STUDENT_STATUS).map(([k, v]) => [k, v.label])];
+            main.innerHTML = `
+                <div class="h-full flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="shrink-0 p-4 sm:p-5 border-b border-slate-200 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-users text-orange-500"></i> Daftar Siswa</h3>
+                            <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start">
+                                <button onclick="setSiswaView('daftar')" class="px-3 py-1.5 rounded-lg ${view === 'daftar' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}">Status Siswa</button>
+                                <button onclick="setSiswaView('catatan')" class="px-3 py-1.5 rounded-lg ${view === 'catatan' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}">Catatan</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                                <input type="text" oninput="handleSiswaSearch(this.value)" value="${escapeAttr(state.siswaSearch)}" placeholder="Cari nama, NISN, kelas, kamar..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+                            ${view === 'daftar' ? `
+                                <select onchange="setSiswaFilter('siswaFilterJenjang', this.value)" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                    ${['semua', 'SRD', 'SRMP', 'SRMA'].map(j => `<option value="${j}" ${state.siswaFilterJenjang === j ? 'selected' : ''}>${j === 'semua' ? 'Semua Jenjang' : j}</option>`).join('')}
+                                </select>
+                                <select onchange="setSiswaFilter('siswaFilterStatus', this.value)" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                    ${statusOpts.map(([v, l]) => `<option value="${v}" ${state.siswaFilterStatus === v ? 'selected' : ''}>${l}</option>`).join('')}
+                                </select>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div id="siswaActionBar"></div>
+                    <div id="siswaTableWrap" class="flex-1 overflow-y-auto overflow-x-auto"></div>
+                </div>
+            `;
+            refreshSiswaUI();
+        }
+
+        function setSiswaView(v) { state.siswaView = v; renderDaftarSiswaContent(); }
+        function handleSiswaSearch(val) { state.siswaSearch = val; refreshSiswaUI(); }
+        function setSiswaFilter(field, val) { state[field] = val; refreshSiswaUI(); }
+        function toggleSiswaSelect(nisn, checked) {
+            const set = new Set(state.siswaSelected.map(String));
+            if (checked) set.add(String(nisn)); else set.delete(String(nisn));
+            state.siswaSelected = [...set];
+            refreshSiswaUI();
+        }
+        function toggleSiswaSelectAll(checked) {
+            const set = new Set(state.siswaSelected.map(String));
+            getFilteredSiswaList().forEach(sw => { if (checked) set.add(String(sw.nisn)); else set.delete(String(sw.nisn)); });
+            state.siswaSelected = [...set];
+            refreshSiswaUI();
+        }
+        function clearSiswaSelection() { state.siswaSelected = []; refreshSiswaUI(); }
+
+        // --- TANDAI STATUS SISWA ---
+        let markJenis = null;
+
+        function openMarkModal(jenis) {
+            const nisnList = state.siswaSelected.filter(n => state.siswa.some(s => String(s.nisn) === String(n)));
+            if (nisnList.length === 0) { showToast("Pilih minimal 1 siswa!", true); return; }
+            markJenis = jenis;
+            const t = STATUS_TYPES[jenis];
+            const names = nisnList.map(n => state.siswa.find(s => String(s.nisn) === String(n)).nama);
+            const preview = names.slice(0, 5).map(escapeAttr).join(', ') + (names.length > 5 ? ` dan ${names.length - 5} lainnya` : '');
+            const pad = n => String(n).padStart(2, '0');
+            const now = new Date();
+            document.getElementById('markModalTitle').innerText = `Tandai Siswa ${t.label}`;
+            document.getElementById('markModalSummary').innerHTML = `<b>${nisnList.length} siswa:</b> ${preview}`;
+            document.getElementById('markWaktuInput').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            document.getElementById('markKeteranganInput').value = '';
+            const note = document.getElementById('markModalNote');
+            if (note) note.innerText = jenis === 'keluar tanpa izin'
+                ? 'Pada surat, petugas pelapor hanya ditampilkan jabatannya (tanpa nama).'
+                : 'Surat keterangan dibuat otomatis dan ditandatangani petugas yang melaporkan.';
+            document.getElementById('markModal').classList.remove('hidden');
+            document.getElementById('markModal').classList.add('flex');
+        }
+
+        function closeMarkModal() {
+            markJenis = null;
+            document.getElementById('markModal').classList.remove('flex');
+            document.getElementById('markModal').classList.add('hidden');
+        }
+
+        // Membuat catatan status: satu baris pada perizinan_siswa per siswa (ID unik, tanda tangan petugas pelapor otomatis)
+        async function createStatusRecords(jenis, nisnList, waktu, keterangan) {
+            const t = STATUS_TYPES[jenis];
+            const now = new Date();
+            const datePrefix = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            const idHead = `${t.prefix}${datePrefix}`;
+            const makeId = n => `${idHead}${String(n).padStart(3, '0')}`;
+            let nextSeq = (await getMaxIzinSeq(idHead)) + 1;
+            for (const nisn of nisnList) {
+                const sw = state.siswa.find(x => String(x.nisn) === String(nisn));
+                const payload = {
+                    id_izin: makeId(nextSeq++),
+                    nip: state.user.nip,
+                    nisn: String(nisn),
+                    kelas: sw ? sw.kelas : '-',
+                    rombel: sw ? sw.rombel : '-',
+                    keperluan: jenis,
+                    keterangan: keterangan,
+                    waktu_keluar: waktu,
+                    waktu_kembali: waktu,
+                    realisasi: null,
+                    status: 'Aktif',
+                    signatures: {
+                        'Petugas Pelapor': {
+                            nama: state.user.nama,
+                            nip: state.user.nip,
+                            jabatan: tugasSource(state.user) || 'Petugas',
+                            status: 'Disetujui',
+                            otomatis: true,
+                            tanggal: new Date().toISOString()
+                        }
+                    }
+                };
+                let inserted = false;
+                for (let attempt = 0; attempt < 6 && !inserted; attempt++) {
+                    const { error } = await supabaseClient.from('perizinan_siswa').insert([payload]);
+                    if (!error) { inserted = true; break; }
+                    const dup = error.code === '23505' || /duplicate|unique/i.test(error.message || '');
+                    if (!dup) throw new Error(error.message);
+                    nextSeq = Math.max(nextSeq, (await getMaxIzinSeq(idHead)) + 1);
+                    payload.id_izin = makeId(nextSeq++);
+                }
+                if (!inserted) throw new Error("Gagal membuat ID yang unik, silakan coba lagi.");
+            }
+        }
+
+        async function submitMark() {
+            const jenis = markJenis;
+            if (!jenis) return;
+            const waktu = document.getElementById('markWaktuInput').value;
+            const keterangan = (document.getElementById('markKeteranganInput').value || '').trim();
+            if (!waktu) { showToast("Waktu harus diisi!", true); return; }
+            const sedangAktif = new Set(state.statusSiswa.filter(r => !isIzinSelesai(r)).map(r => String(r.nisn)));
+            const selected = state.siswaSelected.filter(n => state.siswa.some(s => String(s.nisn) === String(n)));
+            const targets = selected.filter(n => !sedangAktif.has(String(n)));
+            const dilewati = selected.length - targets.length;
+            if (targets.length === 0) {
+                showToast("Semua siswa terpilih masih memiliki status aktif (pasif/sakit/keluar tanpa izin). Tandai kembali terlebih dahulu.", true);
+                return;
+            }
+            closeMarkModal();
+            showLoading("Menyimpan status siswa...");
+            try {
+                await createStatusRecords(jenis, targets, waktu, keterangan);
+                showToast(`${targets.length} siswa ditandai ${STATUS_TYPES[jenis].label.toLowerCase()}.` + (dilewati ? ` ${dilewati} siswa dilewati karena masih memiliki status aktif.` : ''));
+                state.siswaSelected = [];
+                await fetchAppData();
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menyimpan status siswa: " + err.message, true);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Tandai kembali siswa terpilih (catatan status manual atau izin aktif)
+        function openReturnForSelected() {
+            const sm = getStudentStatusMap();
+            const ids = [];
+            let dilewati = 0;
+            state.siswaSelected.forEach(n => {
+                const e = sm.get(String(n));
+                if (e && (e.source === 'manual' || e.kind === 'dengan_izin')) ids.push(e.record.idIzin);
+                else dilewati++;
+            });
+            if (ids.length === 0) {
+                showToast("Tidak ada siswa terpilih yang sedang berstatus pasif, sakit, atau keluar.", true);
+                return;
+            }
+            if (dilewati) showToast(`${dilewati} siswa terpilih dilewati karena tidak sedang berstatus.`);
+            openReturnModalForIds([...new Set(ids)]);
+        }
+
         // Peran penandatangan sesuai jenis izin & kelas siswa (urutan = urutan tampil di surat)
         // Nama jenis izin untuk tampilan (nilai di database tetap, mis. 'kepulangan panjang')
         function keperluanLabel(v) {
@@ -1492,22 +2040,24 @@
                 if (cekErr) throw new Error(cekErr.message);
                 const cur = (rows || [])[0];
                 const curSigs = cur ? (parseJsonField(cur.signatures) || {}) : {};
-                const touched = Object.values(curSigs).some(sg => (sg.status || 'Pending') !== 'Pending');
+                const touched = Object.values(curSigs).some(sg => (sg.status || 'Pending') !== 'Pending' && !(sg.otomatis && String(sg.nip) === String(izin.nip)));
                 if (!cur || touched || /ditolak|selesai|kembali/i.test(String(cur.status || ''))) {
                     throw new Error("Pengajuan sudah mulai diproses (ditandatangani/ditolak) sehingga tidak dapat diubah lagi.");
                 }
 
                 const siswaObj = state.siswa.find(x => x.nisn === String(izin.nisn)) || { kelas: izin.kelas, rombel: izin.rombel };
                 const roles = getSignerRoles(state.izinKeperluan, siswaObj);
-                const newSigs = {};
-                roles.forEach(r => { newSigs[r] = curSigs[r] || { nama: '-', nip: '-', status: 'Pending' }; });
+                // Hitung ulang: peran yang dipegang pengusul terisi otomatis sesuai jenis izin yang baru
+                const newSigs = applyAutoSign(roles, siswaObj, state.user);
+                const lengkap = Object.values(newSigs).length > 0 && Object.values(newSigs).every(sg => sg.status === 'Disetujui');
 
                 const { error } = await supabaseClient.from('perizinan_siswa').update({
                     keperluan: state.izinKeperluan,
                     keterangan: keterangan,
                     waktu_keluar: waktuKeluar,
                     waktu_kembali: waktuKembali,
-                    signatures: newSigs
+                    signatures: newSigs,
+                    status: lengkap ? 'Aktif' : 'Pending'
                 }).eq('id_izin', idIzin);
                 if (error) throw new Error(error.message);
 
@@ -1604,8 +2154,9 @@
                     const kRStr = siswaObj && siswaObj.kelas && siswaObj.rombel ? `${siswaObj.kelas}-${siswaObj.rombel}` : (siswaObj && siswaObj.kelas ? siswaObj.kelas : '');
 
                     let roles = getSignerRoles(state.izinKeperluan, siswaObj);
-                    let initialSigs = {};
-                    roles.forEach(r => { initialSigs[r] = { nama: '-', nip: '-', status: 'Pending' }; });
+                    // Peran yang dipegang pengusul langsung terisi otomatis
+                    let initialSigs = applyAutoSign(roles, siswaObj, state.user);
+                    const awalLengkap = Object.values(initialSigs).length > 0 && Object.values(initialSigs).every(sg => sg.status === 'Disetujui');
                     
                     const idIzin = makeIzinId(nextSeq++);
 
@@ -1620,7 +2171,7 @@
                         waktu_keluar: waktuKeluar,
                         waktu_kembali: waktuKembali,
                         realisasi: null,
-                        status: 'Pending',
+                        status: awalLengkap ? 'Aktif' : 'Pending',
                         signatures: initialSigs
                     };
 
@@ -1863,6 +2414,31 @@
                     </div>
                 </div>
             `;
+        }
+
+        // Tanda tangan otomatis: jika pengusul adalah petugas yang berwenang atas peran tertentu,
+        // peran itu langsung terisi (tanpa persetujuan manual)
+        function applyAutoSign(roles, siswaObj, user, existing) {
+            const kelas = siswaObj ? siswaObj.kelas : '';
+            const rombel = siswaObj ? siswaObj.rombel : '';
+            const sigs = {};
+            roles.forEach(r => {
+                const prev = existing && existing[r];
+                if (prev && (prev.status || 'Pending') !== 'Pending') { sigs[r] = prev; return; }
+                if (userMatchesRole(user, r, kelas, rombel)) {
+                    sigs[r] = {
+                        nama: user.nama,
+                        nip: user.nip,
+                        jabatan: findRoleSegment(user, r, kelas, rombel) || r,
+                        status: 'Disetujui',
+                        otomatis: true,
+                        tanggal: new Date().toISOString()
+                    };
+                } else {
+                    sigs[r] = { nama: '-', nip: '-', status: 'Pending' };
+                }
+            });
+            return sigs;
         }
 
         // Apakah tombol tanda tangan perlu ditampilkan untuk pengguna saat ini
@@ -2208,7 +2784,11 @@
                 </button>
             `).join('');
             const empty = pengantarCandidates.length === 0 ? '<p class="px-3 py-3 text-xs text-slate-400 text-center">Tidak ada pegawai yang cocok.</p>' : '';
-            box.innerHTML = items + empty + `
+            const tanpaBtn = `
+                <button type="button" onclick="selectPengantarTanpa()" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-orange-50 border-b border-slate-100 bg-slate-50 ${returnPengantar.mode === 'tanpa' ? 'bg-orange-50' : ''}">
+                    <i class="fa-solid fa-person-walking mr-1"></i> Tanpa pengantar (kembali sendiri)
+                </button>`;
+            box.innerHTML = tanpaBtn + items + empty + `
                 <button type="button" onclick="selectPengantarLainnya()" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 bg-slate-50 sticky bottom-0 ${returnPengantar.mode === 'lainnya' ? 'bg-orange-50' : ''}">
                     <i class="fa-solid fa-user-plus mr-1"></i> Lainnya (pengantar tidak ada dalam daftar)
                 </button>
@@ -2224,6 +2804,7 @@
             if (m === 'saya') { text = `${returnPengantar.jabatan} - ${returnPengantar.nama} (Anda)`; filled = true; }
             else if (m === 'pegawai') { text = `${returnPengantar.jabatan} - ${returnPengantar.nama}`; filled = true; }
             else if (m === 'lainnya') { text = 'Lainnya (ketik manual)'; filled = true; }
+            else if (m === 'tanpa') { text = 'Tanpa pengantar (kembali sendiri)'; filled = true; }
             if (label) {
                 label.innerText = text;
                 label.className = 'truncate ' + (filled ? 'text-slate-800' : 'text-slate-400');
@@ -2266,6 +2847,12 @@
             updatePengantarLabel();
         }
 
+        function selectPengantarTanpa() {
+            returnPengantar = { mode: 'tanpa', nip: '', nama: '', jabatan: '' };
+            closePengantarDropdown();
+            updatePengantarLabel();
+        }
+
         function selectPengantarLainnya() {
             returnPengantar = { mode: 'lainnya', nip: '', nama: '', jabatan: '' };
             closePengantarDropdown();
@@ -2297,6 +2884,9 @@
             if (m === 'saya' || m === 'pegawai') {
                 return { ok: true, data: { pengantar: returnPengantar.nama, pengantar_tipe: 'pegawai', pengantar_jabatan: returnPengantar.jabatan, pengantar_nip: returnPengantar.nip } };
             }
+            if (m === 'tanpa') {
+                return { ok: true, data: { pengantar: 'Tanpa pengantar (kembali sendiri)', pengantar_tipe: 'tanpa' } };
+            }
             if (m === 'lainnya') {
                 const nama = (document.getElementById('pengantarManualName').value || '').trim();
                 const hubungan = (document.getElementById('pengantarManualRelasi').value || '').trim();
@@ -2308,7 +2898,17 @@
         }
 
         function openReturnInputModalHandler(idIzin) {
-            activeReturnIdIzin = idIzin;
+            openReturnModalForIds([idIzin]);
+        }
+
+        function openReturnModalForIds(ids) {
+            activeReturnIds = ids.slice();
+            activeReturnIdIzin = ids[0] || null;
+            const infoEl = document.getElementById('returnModalInfo');
+            if (infoEl) {
+                if (ids.length > 1) { infoEl.innerText = `Mencatat ${ids.length} siswa kembali sekaligus.`; infoEl.classList.remove('hidden'); }
+                else infoEl.classList.add('hidden');
+            }
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
             document.getElementById('returnDateInput').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -2331,6 +2931,7 @@
             document.getElementById('returnInputModal').classList.remove('flex');
             document.getElementById('returnInputModal').classList.add('hidden');
             activeReturnIdIzin = null;
+            activeReturnIds = [];
         }
 
         async function submitStudentReturn() {
@@ -2348,10 +2949,13 @@
                 return;
             }
 
-            const idIzin = activeReturnIdIzin;
+            const ids = activeReturnIds.length ? activeReturnIds.slice() : (activeReturnIdIzin ? [activeReturnIdIzin] : []);
             closeReturnInputModal();
+            if (ids.length === 0) return;
 
-            showCustomConfirm("Apakah Anda yakin ingin menyelesaikan perizinan dan mencatat siswa kembali?", async () => {
+            showCustomConfirm(ids.length > 1
+                ? `Apakah Anda yakin ingin mencatat ${ids.length} siswa telah kembali?`
+                : "Apakah Anda yakin ingin menyelesaikan perizinan dan mencatat siswa kembali?", async () => {
                 showLoading("Memproses waktu kembali...");
                 try {
                     const realisasiStr = `${dateVal} ${timeVal}`;
@@ -2362,18 +2966,20 @@
                         tugas: tugasSource(state.user) || 'Pegawai'
                     };
 
-                    const { error } = await supabaseClient.from('perizinan_siswa').update({ 
+                    const upd = supabaseClient.from('perizinan_siswa').update({ 
                         realisasi: realisasiStr, 
                         pengantar: pengantarRes.data.pengantar,
                         catatan: catatan || null,
                         return_details: returnDetails,
                         receiver_info: receiverInfo,
                         status: 'Selesai' 
-                    }).eq('id_izin', idIzin);
+                    });
+                    const { error } = await (ids.length === 1 ? upd.eq('id_izin', ids[0]) : upd.in('id_izin', ids));
 
                     if (error) throw new Error(error.message);
 
-                    showToast("Siswa dicatat telah kembali.");
+                    showToast(ids.length > 1 ? `${ids.length} siswa dicatat telah kembali.` : "Siswa dicatat telah kembali.");
+                    state.siswaSelected = [];
                     await fetchAppData();
                 } catch (err) {
                     console.error(err);
@@ -2402,7 +3008,7 @@
         }
 
         function openPrintLetterModal(idIzin) {
-            const izin = state.perizinanSiswa.find(p => p.idIzin === idIzin);
+            const izin = findPerizinanRecord(idIzin);
             if (!izin) {
                 showToast("Data perizinan tidak ditemukan.", true);
                 return;
@@ -2411,26 +3017,29 @@
             const sigKeys = orderSignerRoles(izin);
             const totalSigs = sigKeys.length;
             const rej = getRejectionInfo(izin);
+            const stType = statusTypeOf(izin);   // null untuk izin biasa
+            const hideSignerName = String(izin.keperluan).toLowerCase() === 'keluar tanpa izin';
             // Ringkasan isi QR: data inti surat + status tanda tangan
             const qrSigners = orderSignerRoles(izin).map(role => {
                 const sg = resolveSigner(izin, role);
-                return (izin.signatures[role] || {}).status === 'Disetujui' ? `${sg.jabatan}: ${sg.nama}` : `${role}: menunggu`;
+                if ((izin.signatures[role] || {}).status !== 'Disetujui') return `${role}: menunggu`;
+                return hideSignerName ? sg.jabatan : `${sg.jabatan}: ${sg.nama}`;
             }).join('; ');
             const qrText = [
-                'SURAT PEMBERIAN IZIN',
+                stType ? `SURAT KETERANGAN ${stType.title}` : 'SURAT PEMBERIAN IZIN',
                 `ID: ${izin.idIzin}`,
                 `Siswa: ${izin.namaSiswa} (${izin.nisn})`,
                 `Kelas: ${izin.kelas}-${izin.rombel || '-'}`,
-                `Jenis: ${keperluanLabel(izin.keperluan)}`,
-                `Keluar: ${izin.waktuKeluar}`,
-                `Kembali: ${izin.waktuKembali}`,
+                stType ? `Status siswa: ${stType.label}` : `Jenis: ${keperluanLabel(izin.keperluan)}`,
+                stType ? `Sejak: ${izin.waktuKeluar}` : `Keluar: ${izin.waktuKeluar}`,
+                ...(stType ? [] : [`Kembali: ${izin.waktuKembali}`]),
                 `Status: ${getIzinStatusLabel(izin)}`,
                 `Tanda tangan: ${qrSigners}`
             ].join('\n');
             const letterFooterHtml = !(izin.realisasi && izin.realisasi !== '-') ? `
                 <div class="signature-block-container border-t border-slate-300 pt-4 mt-6 flex items-start justify-between gap-4 text-[11px] sm:text-xs">
                     <div class="flex-1 min-w-0">
-                        ${rej ? '' : `
+                        ${(rej || stType) ? '' : `
                         <p class="font-bold text-slate-800 mb-1">Ketentuan Izin</p>
                         <ol class="list-decimal pl-4 space-y-0.5 text-slate-600 leading-snug">
                             <li>Surat ditunjukkan ke petugas gerbang saat keluar dan kembali.</li>
@@ -2517,9 +3126,64 @@
             const receiverInfo = resolveReceiver(izin);
             const isReturned = izin.realisasi && izin.realisasi !== '-';
 
+            // Surat keterangan siswa pasif / sakit / keluar tanpa izin: satu tanda tangan petugas pelapor (otomatis)
+            let statusPart1Html = '';
+            if (stType) {
+                const sigKey = Object.keys(izin.signatures || {})[0];
+                const sg = (izin.signatures || {})[sigKey] || {};
+                const jab = sg.jabatan || 'Petugas';
+                const sigQr = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('Valid Digital Signature - ' + jab + (hideSignerName ? '' : ': ' + (sg.nama || '') + ' (NIP: ' + (sg.nip || '') + ')'))}" class="w-16 h-16 mx-auto" alt="QR tanda tangan">`;
+                const tglSurat = (parseWaktu(izin.waktuKeluar) || new Date()).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+                const waktuTeks = `${formatIndonesianDateTime(izin.waktuKeluar)} WIB`;
+                const kind = String(izin.keperluan).toLowerCase();
+                const narasi = kind === 'siswa pasif'
+                    ? `Pada ${waktuTeks}, siswa tersebut berstatus <b>pasif</b> di Sekolah Rakyat Terintegrasi 2 Kota Pasuruan.`
+                    : (kind === 'siswa sakit'
+                        ? `Pada ${waktuTeks}, siswa tersebut dilaporkan dalam kondisi <b>sakit</b> dan tidak dapat mengikuti kegiatan sebagaimana biasa.`
+                        : `Pada ${waktuTeks}, siswa tersebut tercatat <b>keluar dari sekolah/asrama tanpa izin</b>.`);
+                statusPart1Html = `
+                <div class="space-y-3 letter-part1">
+                    <div class="text-center space-y-1 py-1">
+                        <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT KETERANGAN ${stType.title}</h3>
+                    </div>
+
+                    <div class="space-y-2 text-xs sm:text-sm">
+                        <p class="text-slate-700">Yang bertanda tangan di bawah ini menerangkan bahwa siswa:</p>
+                        <table class="w-full pl-4 space-y-1">
+                            <tr><td class="w-44 font-semibold text-slate-600">Nama Siswa & NISN</td><td>: <b>${escapeAttr(izin.namaSiswa)}</b> (${escapeAttr(izin.nisn)})</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Jenjang / Kelas</td><td>: ${getJenjang(izin.kelas)} / Kelas ${escapeAttr(izin.kelas)}-${escapeAttr(izin.rombel || '-')}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Kamar</td><td>: ${escapeAttr(izin.kamar || '-')}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Keterangan</td><td>: ${escapeAttr(izin.keterangan && izin.keterangan !== '-' ? izin.keterangan : '-')}</td></tr>
+                            <tr><td class="font-semibold text-slate-600">Sejak</td><td>: ${waktuTeks}</td></tr>
+                        </table>
+                        <p class="pt-2 leading-relaxed">${narasi} Demikian surat keterangan ini dibuat untuk digunakan sebagaimana mestinya.</p>
+                    </div>
+
+                    <div class="flex justify-end pt-6 text-xs signature-block-container">
+                        <div class="text-center w-60 flex flex-col items-center">
+                            <p class="text-slate-700 mb-1">Pasuruan, ${tglSurat}</p>
+                            <p class="font-semibold text-slate-700 mb-1">Petugas yang melaporkan,</p>
+                            <p class="font-semibold uppercase text-slate-700 mb-2">${escapeAttr(jab)}</p>
+                            <div class="my-1">${sigQr}</div>
+                            ${hideSignerName ? `
+                                <p class="text-[10px] text-slate-500 mt-2 italic">Ditandatangani secara elektronik</p>
+                            ` : `
+                                <p class="font-bold underline text-slate-900 mt-2">${escapeAttr(sg.nama || '-')}</p>
+                                <p class="text-[11px] text-slate-600 mt-0.5">${sg.nip && sg.nip !== '-' ? 'NIP. ' + escapeAttr(sg.nip) : '&nbsp;'}</p>
+                            `}
+                        </div>
+                    </div>
+                    ${letterFooterHtml}
+                </div>`;
+            }
+            const returnReason = stType ? stType.returnReason : 'seusai keluar sekolah dengan izin';
+            const pengantarTanpa = returnDetails.pengantar_tipe === 'tanpa';
+
             const pengantarKet = returnDetails.pengantar_tipe === 'lainnya' ? (returnDetails.pengantar_hubungan || '') : (returnDetails.pengantar_jabatan || '');
             const pengantarTeks = returnDetails.pengantar ? returnDetails.pengantar + (pengantarKet ? ` (${pengantarKet})` : '') : '........................................................';
-            let returnPengantarQr = (isReturned && returnDetails.pengantar) ?
+            let returnPengantarQr = pengantarTanpa ?
+                `<div class="h-16 flex items-center justify-center text-slate-400 text-xs italic">Kembali sendiri</div>` :
+                (isReturned && returnDetails.pengantar) ?
                 `<div class="h-16 flex flex-col items-center justify-center gap-1 text-green-700">
                     <i class="fa-solid fa-circle-check text-2xl"></i>
                     <span class="text-[10px] font-semibold">${returnDetails.pengantar_tipe === 'lainnya' ? 'Dicatat oleh sistem' : 'Terverifikasi oleh sistem'}</span>
@@ -2531,6 +3195,9 @@
                 `<div class="h-16 flex items-center justify-center text-slate-300 text-xs">-</div>`;
 
             const container = document.getElementById('printableLetter');
+            // Tanpa surat keterangan kembali: surat pemberian izin diperlebar hingga memenuhi satu halaman A4
+            container.classList.remove('letter-fill');
+            if (!(izin.realisasi && izin.realisasi !== '-')) container.classList.add('letter-fill');
             container.innerHTML = `
                 <!-- KOP SURAT BARU KEMENSOS -->
                 <div class="flex items-center border-b-4 border-double border-black pb-4 mb-4">
@@ -2549,8 +3216,9 @@
                     </div>
                 </div>
 
-                <!-- BAGIAN 1: SURAT IZIN -->
-                <div class="space-y-3">
+                <!-- BAGIAN 1: SURAT IZIN / SURAT KETERANGAN STATUS SISWA -->
+                ${stType ? statusPart1Html : `
+                <div class="space-y-3 letter-part1">
                     <div class="text-center space-y-1 py-1">
                         <h3 class="font-bold text-sm uppercase underline tracking-wide">SURAT PEMBERIAN IZIN ${keperluanLabel(izin.keperluan)}</h3>
                     </div>
@@ -2572,7 +3240,7 @@
                     ${rejectBannerHtml}
                     ${sigBoxesHtml}
                     ${letterFooterHtml}
-                </div>
+                </div>`}
 
                 ${isReturned ? `
                 <div class="border-t-2 border-dashed border-slate-300 my-6 page-break"></div>
@@ -2585,7 +3253,7 @@
 
                     <div class="space-y-2 text-xs sm:text-sm">
                         <p class="text-slate-700 leading-relaxed">
-                            Yang bertanda tangan di bawah ini telah menerima kembali siswa ke sekolah/asrama seusai keluar sekolah dengan izin. Adapun siswa <b>${izin.namaSiswa}</b> (Kelas ${izin.kelas}-${izin.rombel || '-'}) diterima kembali pada:
+                            Yang bertanda tangan di bawah ini telah menerima kembali siswa ke sekolah/asrama ${returnReason}. Adapun siswa <b>${izin.namaSiswa}</b> (Kelas ${izin.kelas}-${izin.rombel || '-'}) diterima kembali pada:
                         </p>
                         <table class="w-full pl-4 space-y-1">
                             <tr><td class="w-36 font-semibold text-slate-600">Waktu Kembali</td><td>: ${isReturned ? formatIndonesianDateTime(izin.realisasi) + ' WIB' : '........................................................'}</td></tr>
@@ -2598,7 +3266,7 @@
                         <div class="w-48 flex flex-col items-center">
                             <p class="font-semibold text-slate-700 mb-2">Pengantar</p>
                             <div class="my-1">${returnPengantarQr}</div>
-                            <p class="font-bold underline text-slate-900 mt-2">${returnDetails.pengantar || '( ........................ )'}</p>
+                            <p class="font-bold ${pengantarTanpa ? '' : 'underline '}text-slate-900 mt-2">${pengantarTanpa ? '-' : (returnDetails.pengantar || '( ........................ )')}</p>
                             ${pengantarKet ? `<p class="text-[11px] text-slate-600">${pengantarKet}</p>` : ''}
                         </div>
                         <div class="w-48 flex flex-col items-center">
