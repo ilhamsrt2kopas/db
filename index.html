@@ -253,6 +253,11 @@
                 <i class="fa-solid fa-circle-question text-orange-500"></i> Konfirmasi Transaksi
             </h3>
             <p class="text-sm text-slate-500 mb-4" id="modalTypeText">Anda akan melakukan transaksi:</p>
+            <div id="modalOnBehalf" class="hidden mb-4">
+                <label for="modalOnBehalfSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Atas Nama</label>
+                <select id="modalOnBehalfSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"></select>
+                <p class="text-[11px] text-slate-400 mt-1">Transaksi tercatat atas nama pegawai yang dipilih.</p>
+            </div>
             <div class="bg-slate-50 rounded-xl p-3 max-h-72 overflow-y-auto mb-4 border border-slate-100 space-y-3" id="modalItemList"></div>
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition">Batal</button>
@@ -301,7 +306,7 @@
             statusSiswa: [],
             // Navigasi
             activeTab: 'dashboard',
-            perizinanSubTab: 'aktif',
+            perizinanSubTab: 'siswa',
             // Modul barang
             cart: {},
             addStockCart: {},
@@ -335,7 +340,6 @@
             siswaSearch: '',
             siswaFilterJenjang: 'semua',
             siswaFilterStatus: 'semua',
-            siswaView: 'daftar',
             // Filter laporan perizinan
             reportIzinJenis: 'semua',
             reportIzinStatus: 'semua',
@@ -685,10 +689,11 @@
 
         function getPerizinanTabs() {
             return [
-                { id: 'persetujuan', label: 'Persetujuan', icon: 'fa-check' },
-                { id: 'aktif', label: 'Aktif', icon: 'fa-person-walking-arrow-right' },
+                { id: 'siswa', label: 'Daftar Siswa', icon: 'fa-users' },
+                { id: 'persetujuan', label: 'Mengajukan izin', icon: 'fa-check' },
+                { id: 'aktif', label: 'Keluar dengan izin', icon: 'fa-person-walking-arrow-right' },
                 { id: 'riwayat', label: 'Riwayat', icon: 'fa-clock-rotate-left' },
-                { id: 'siswa', label: 'Daftar Siswa', icon: 'fa-users' }
+                { id: 'catatan', label: 'Tidak ada di sekolah', icon: 'fa-user-slash' }
             ];
         }
 
@@ -701,7 +706,7 @@
             const at = state.activeTab;
             return [
                 { label: 'Dasbor', short: 'Dasbor', icon: 'fa-chart-pie', target: 'dashboard', active: at === 'dashboard' },
-                { label: 'Perizinan Siswa', short: 'Perizinan', icon: 'fa-id-badge', target: 'perizinan', active: at === 'perizinan' },
+                { label: 'Siswa', short: 'Siswa', icon: 'fa-id-badge', target: 'perizinan', active: at === 'perizinan' },
                 { label: 'Inventaris & Modul', short: 'Inventaris', icon: 'fa-boxes-stacked', target: 'barang', active: BARANG_TAB_IDS.includes(at) },
                 { label: 'Laporan', short: 'Laporan', icon: 'fa-file-lines', target: 'laporanbarang', active: LAPORAN_TAB_IDS.includes(at) },
                 { label: 'Profil & Akun', short: 'Profil', icon: 'fa-user-circle', target: 'gantipassword', active: at === 'gantipassword' }
@@ -715,11 +720,11 @@
             if (BARANG_TAB_IDS.includes(state.activeTab)) { subTabs = getBarangTabs(); subTitle = 'Submenu Inventaris'; }
             else if (LAPORAN_TAB_IDS.includes(state.activeTab)) { subTabs = getLaporanTabs(); subTitle = 'Submenu Laporan'; }
 
-            // Submenu Perizinan: hanya di sidebar (layar lebar). Pada layar sempit tetap di dalam halaman.
+            // Submenu Siswa: hanya di sidebar (layar lebar). Pada layar sempit tetap di dalam halaman.
             let sidebarSubTabs = subTabs;
             let sidebarSubTitle = subTitle;
             if (state.activeTab === 'perizinan') {
-                sidebarSubTitle = 'Submenu Perizinan';
+                sidebarSubTitle = 'Submenu Siswa';
                 sidebarSubTabs = getPerizinanTabs().map(t => ({ ...t, action: `setPerizinanSubTab('${t.id}')`, active: state.perizinanSubTab === t.id }));
             }
 
@@ -806,6 +811,8 @@
         function switchTab(tab) {
             // Membuka Riwayat dari menu = tampilkan semua transaksi
             if (tab === 'riwayat') state.historyJenis = 'semua';
+            // Membuka menu Siswa dari menu utama = selalu mulai dari Daftar Siswa
+            if (tab === 'perizinan') state.perizinanSubTab = 'siswa';
             state.activeTab = tab;
             render();
         }
@@ -846,12 +853,11 @@
             const allIzinBerjalan = state.perizinanSiswa.filter(p => !isIzinClosed(p));
             const nowD = new Date();
             const isAllSigned = isAllSignedIzin;
-            // Bagian 1: menunggu persetujuan (keluar tanpa izin paling atas, lalu yang perlu ditandatangani pengguna)
-            const prio = p => (isKeluarTanpaIzin(p, nowD) ? 2 : 0) + (canUserSignNow(p) ? 1 : 0);
+            // Bagian 1: menunggu persetujuan (yang perlu ditandatangani pengguna lebih dulu)
+            const prio = p => (canUserSignNow(p) ? 1 : 0);
             const waitingIzin = allIzinBerjalan.filter(p => !isAllSigned(p)).sort((a, b) => prio(b) - prio(a));
             // Bagian 2: aktif = sudah lengkap ditandatangani DAN sudah memasuki waktu rencana berangkat
             const aktifIzin = allIzinBerjalan.filter(p => isAllSigned(p) && isIzinMulai(p, nowD));
-            const tanpaIzinCount = waitingIzin.filter(p => isKeluarTanpaIzin(p, nowD)).length;
             const activeLoans = state.transaksi.filter(t => {
                 let isJenisPinjam = (t.jenis || '').toLowerCase().includes('pinjam');
                 let isUnreturned = !(t.status || '').toLowerCase().includes('dikembalikan');
@@ -872,14 +878,12 @@
                 let sigs = p.signatures || {};
                 const allSigned = isAllSigned(p);
                 const canSign = canUserSignNow(p);
-                const tanpaIzin = isKeluarTanpaIzin(p, nowD);
                 return `
-                    <div class="p-3 rounded-xl border ${tanpaIzin ? 'border-red-300 bg-red-50/60' : (canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100 bg-slate-50')} flex items-center justify-between gap-2">
+                    <div class="p-3 rounded-xl border ${canSign ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100 bg-slate-50'} flex items-center justify-between gap-2">
                         <div class="min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${p.namaSiswa} <span class="text-xs text-orange-600 font-medium">(Kelas ${p.kelas}-${p.rombel || '-'})</span></p>
                             <p class="text-[11px] text-slate-500 mt-0.5">Ket: ${p.keterangan || '-'}</p>
                             <div class="flex flex-wrap gap-1 mt-1">
-                                ${tanpaIzin ? tanpaIzinBadgeHTML() : ''}
                                 ${Object.entries(sigs).map(([role, sig]) => `
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
                                 `).join('')}
@@ -966,7 +970,7 @@
                             <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold">${waitingIzin.length + aktifIzin.length} Siswa</span>
                         </div>
                         <div class="space-y-5">
-                            ${izinSection('Menunggu Persetujuan' + (tanpaIzinCount > 0 ? ` <span class="ml-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">${tanpaIzinCount} keluar tanpa izin</span>` : ''), 'fa-hourglass-half', 'text-amber-500', waitingIzin, 'Tidak ada izin yang menunggu persetujuan.', "goToTab('perizinan', 'persetujuan')")}
+                            ${izinSection('Menunggu Persetujuan', 'fa-hourglass-half', 'text-amber-500', waitingIzin, 'Tidak ada izin yang menunggu persetujuan.', "goToTab('perizinan', 'persetujuan')")}
                             <div class="border-t border-slate-100"></div>
                             ${izinSection('Aktif', 'fa-person-walking-arrow-right', 'text-green-600', aktifIzin, 'Tidak ada siswa yang sedang izin keluar.', "goToTab('perizinan', 'aktif')")}
                         </div>
@@ -1106,10 +1110,10 @@
             let perizinanTabs = getPerizinanTabs();
 
             if (!perizinanTabs.some(t => t.id === state.perizinanSubTab)) {
-                state.perizinanSubTab = isSigner ? 'persetujuan' : 'aktif';
+                state.perizinanSubTab = 'siswa';
             }
 
-            if (state.perizinanSubTab === 'siswa') {
+            if (state.perizinanSubTab === 'siswa' || state.perizinanSubTab === 'catatan') {
                 renderDaftarSiswaContent();
                 return;
             }
@@ -1208,7 +1212,7 @@
                                                 ${state.perizinanSubTab === 'riwayat' ? `<td class="p-3 text-xs text-green-600 font-bold">${isIzinDitolak(p) ? '<span class="text-slate-400 font-normal">-</span>' : formatIndonesianDateTime(p.realisasi)}</td>` : ''}
                                                 <td class="p-3">
                                                     <div class="space-y-1">
-                                                        <span class="px-2 py-0.5 ${displayStatus === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'} rounded text-[10px] font-bold">${displayStatus}</span>${isKeluarTanpaIzin(p) ? ' ' + tanpaIzinBadgeHTML() : ''}${rejectInfoHTML(p)}
+                                                        <span class="px-2 py-0.5 ${displayStatus === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'} rounded text-[10px] font-bold">${displayStatus}</span>${rejectInfoHTML(p)}
                                                         <div class="flex flex-wrap gap-1 mt-1">
                                                             ${Object.entries(sigs).map(([role, sig]) => `
                                                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sigChipClass(sig.status)}">${role}</span>
@@ -1348,16 +1352,6 @@
         function isIzinMulai(p, now) {
             const d = parseWaktu(p.waktuKeluar);
             return !!d && d <= (now || new Date());
-        }
-
-        // Waktu berangkat sudah tiba, tetapi izin belum lengkap ditandatangani (belum ditolak/selesai):
-        // siswa dianggap keluar tanpa izin
-        function isKeluarTanpaIzin(p, now) {
-            return !isIzinClosed(p) && !isAllSignedIzin(p) && isIzinMulai(p, now);
-        }
-
-        function tanpaIzinBadgeHTML() {
-            return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Keluar tanpa izin</span>';
         }
 
         function getIzinStatusLabel(p) {
@@ -1688,8 +1682,8 @@
             });
             state.perizinanSiswa.forEach(p => {
                 if (isIzinClosed(p) || !isIzinMulai(p, now)) return;
+                // Izin yang masih menunggu persetujuan tidak mengubah status siswa
                 if (isAllSignedIzin(p)) put(String(p.nisn), 'dengan_izin', 2, p, 'izin');
-                else put(String(p.nisn), 'tanpa_izin', 3, p, 'izin');
             });
             return map;
         }
@@ -1743,7 +1737,6 @@
                             const isSel = sel.has(nisn);
                             let detail = '';
                             if (entry && entry.source === 'manual') detail = `Sejak ${formatShortDateTime(entry.record.waktuKeluar)}`;
-                            else if (entry && kind === 'tanpa_izin') detail = 'Otomatis: izin belum lengkap ditandatangani';
                             else if (entry && kind === 'dengan_izin') detail = 'Izin aktif';
                             const rec = (entry && entry.record) || latest.get(nisn);
                             return `
@@ -1827,23 +1820,23 @@
         function refreshSiswaUI() {
             const wrap = document.getElementById('siswaTableWrap');
             const bar = document.getElementById('siswaActionBar');
-            if (wrap) wrap.innerHTML = state.siswaView === 'catatan' ? renderCatatanTableHTML() : renderSiswaTableHTML();
-            if (bar) bar.innerHTML = state.siswaView === 'catatan' ? '' : renderSiswaActionBarHTML();
+            const isCatatan = state.perizinanSubTab === 'catatan';
+            if (wrap) wrap.innerHTML = isCatatan ? renderCatatanTableHTML() : renderSiswaTableHTML();
+            if (bar) bar.innerHTML = isCatatan ? '' : renderSiswaActionBarHTML();
         }
 
         function renderDaftarSiswaContent() {
             const main = document.getElementById('mainContent');
-            const view = state.siswaView === 'catatan' ? 'catatan' : 'daftar';
+            const view = state.perizinanSubTab === 'catatan' ? 'catatan' : 'daftar';
             const statusOpts = [['semua', 'Semua Status'], ...Object.entries(STUDENT_STATUS).map(([k, v]) => [k, v.label])];
             main.innerHTML = `
                 <div class="h-full flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="shrink-0 p-4 sm:p-5 border-b border-slate-200 space-y-3">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-users text-orange-500"></i> Daftar Siswa</h3>
-                            <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start">
-                                <button onclick="setSiswaView('daftar')" class="px-3 py-1.5 rounded-lg ${view === 'daftar' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}">Status Siswa</button>
-                                <button onclick="setSiswaView('catatan')" class="px-3 py-1.5 rounded-lg ${view === 'catatan' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}">Catatan</button>
-                            </div>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid ${view === 'catatan' ? 'fa-user-slash' : 'fa-users'} text-orange-500"></i> ${view === 'catatan' ? 'Tidak ada di sekolah' : 'Daftar Siswa'}
+                            </h3>
+                            ${view === 'catatan' ? '<span class="text-[11px] text-slate-500">Riwayat siswa pasif, sakit, dan keluar tanpa izin</span>' : ''}
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2">
                             <div class="relative flex-1">
@@ -1867,7 +1860,6 @@
             refreshSiswaUI();
         }
 
-        function setSiswaView(v) { state.siswaView = v; renderDaftarSiswaContent(); }
         function handleSiswaSearch(val) { state.siswaSearch = val; refreshSiswaUI(); }
         function setSiswaFilter(field, val) { state[field] = val; refreshSiswaUI(); }
         function toggleSiswaSelect(nisn, checked) {
@@ -4174,9 +4166,29 @@
             document.getElementById('modalTypeText').innerText = `Anda akan melakukan ${jenis} untuk barang berikut:`;
             
             updateModalItemList(selectedItems, jenis);
+            setupOnBehalfSelect();
 
             document.getElementById('confirmModal').classList.remove('hidden');
             document.getElementById('confirmModal').classList.add('flex');
+        }
+
+        // Admin dapat mengambil/meminjam barang atas nama pegawai lain
+        function setupOnBehalfSelect() {
+            const box = document.getElementById('modalOnBehalf');
+            const sel = document.getElementById('modalOnBehalfSelect');
+            if (!box || !sel) return;
+            if (!state.user.isAdmin) {
+                box.classList.add('hidden');
+                sel.innerHTML = '';
+                return;
+            }
+            const list = (state.penggunaList || [])
+                .filter(u => String(u.nip) !== String(state.user.nip))
+                .map(u => ({ nip: String(u.nip), nama: u.nama || '', jabatan: tugasSource(u) || 'Pegawai' }))
+                .sort((a, b) => a.jabatan.localeCompare(b.jabatan, 'id', { numeric: true }) || a.nama.localeCompare(b.nama, 'id'));
+            sel.innerHTML = `<option value="">Saya sendiri (${escapeAttr(state.user.nama)})</option>` +
+                list.map(u => `<option value="${escapeAttr(u.nip)}">${escapeAttr(u.jabatan)} - ${escapeAttr(u.nama)}</option>`).join('');
+            box.classList.remove('hidden');
         }
 
         function updateModalItemList(selectedItems, jenis) {
@@ -4284,6 +4296,20 @@
                 }
             }
 
+            // Pelaku transaksi: pengguna sendiri, atau (khusus admin) pegawai lain yang dipilih
+            let actor = state.user;
+            let dicatatOleh = null;
+            if (state.user.isAdmin) {
+                const sel = document.getElementById('modalOnBehalfSelect');
+                const nipPilihan = sel ? sel.value : '';
+                if (nipPilihan) {
+                    const u = findPenggunaByNip(nipPilihan);
+                    if (!u) { showToast("Pegawai yang dipilih tidak ditemukan.", true); return; }
+                    actor = u;
+                    dicatatOleh = state.user;
+                }
+            }
+
             closeConfirmModal();
 
             showLoading("Memproses Transaksi...");
@@ -4320,14 +4346,15 @@
                         } else {
                             statusTrx = `Dipinjam pada ${timestampStr} (Keperluan: ${itm.tujuan})`;
                         }
+                        if (dicatatOleh) statusTrx += ` (dicatat oleh ${dicatatOleh.nama})`;
 
                         const customTrxId = `K-${datePrefix}${String(seq).padStart(4, '0')}`;
                         seq++;
 
                         transaksiPayload.push({
                             id_transaksi: customTrxId,
-                            nip: state.user.nip,
-                            nama_pengguna: state.user.nama,
+                            nip: actor.nip,
+                            nama_pengguna: actor.nama,
                             id_barang: itm.id,
                             nama_barang: targetBarang.nama,
                             jumlah: itm.jumlah,
